@@ -316,12 +316,10 @@ const ADMIN_EMAILS = ['hoonse00000@gmail.com', 'sw.almond06@gmail.com', 'gigayu7
    기본값
    ========================================================= */
 const DEFAULT_SETTINGS = {
-  critVer: 3,
-  cvaThreshold: 53, cvaSevere: 48, cvaWeight: 2.5, cvaMax: 35,
-  headTol: 2, headWeight: 3, headMax: 20,
-  shoulderTol: 1.5, shoulderWeight: 4, shoulderMax: 25,
-  pelvisTol: 2, pelvisWeight: 3, pelvisMax: 20,
-  gradeGood: 90, gradeCaution: 75,
+  critVer: 4,
+  cvaGood: 50, cvaAlert: 46, saGood: 52, saAlert: 48, tiltGood: 3, tiltRetake: 5,
+  retakeSpread: 3, penWarn: 8, penPos: 18,
+  gradeGood: 90, gradeCaution: 70,
   apiUrl: '', apiHeader: 'Authorization', apiKey: '',
   teamName: '현대중학교', introTitle: "학생 맞춤형 자세 교정 웹앱 설문",
   introText: "본 설문은 현대중학교 학생들의 평소 자세 습관 및 신체 불편감을 파악하여, 잘못된 자세를 찾아 교정하는 ‘학생 맞춤형 자세 교정 웹앱’으로 자세 교정을 돕기 위해 실시됩니다.",
@@ -335,23 +333,27 @@ const POINT_INFO = {
   earL:{label:'귀(사진 왼쪽)',c:'--ear'}, earR:{label:'귀(사진 오른쪽)',c:'--ear'},
   shL:{label:'어깨(사진 왼쪽)',c:'--sh'}, shR:{label:'어깨(사진 오른쪽)',c:'--sh'},
   hipL:{label:'골반(사진 왼쪽)',c:'--hip'}, hipR:{label:'골반(사진 오른쪽)',c:'--hip'},
-  ear:{label:'귀 구슬',c:'--ear'}, c7:{label:'목 뒤 7번 목뼈',c:'--c7'}, shoulder:{label:'어깨',c:'--sh'}, hip:{label:'골반',c:'--hip'}
+  ear:{label:'귀 구슬',c:'--ear'}, c7:{label:'목 뒤 7번 목뼈',c:'--c7'}, shoulder:{label:'어깨 끝 뼈(견봉)',c:'--sh'}, hip:{label:'골반',c:'--hip'}
 };
 const DEFAULT_POINTS = {
   front:{earL:{x:.44,y:.16},earR:{x:.56,y:.16},shL:{x:.36,y:.28},shR:{x:.64,y:.28},hipL:{x:.42,y:.56},hipR:{x:.58,y:.56}},
   side:{ear:{x:.53,y:.16},c7:{x:.45,y:.25},shoulder:{x:.5,y:.29},hip:{x:.49,y:.56}}
 };
 const EXERCISES = {
-  chin:{ name:'턱 당기기 운동', min:3, why:'거북목 자세 경향',
-    steps:['벽에 등을 대고 서서 시선은 정면을 봅니다.','턱을 뒤로 당겨 뒤통수를 벽 쪽으로 밀어 5초 유지합니다.','천천히 힘을 풀고 10회 × 2세트 반복합니다.'] },
-  shoulder:{ name:'어깨 스트레칭', min:4, why:'어깨 불균형 경향',
-    steps:['어깨를 귀 쪽으로 으쓱 올렸다가 툭 내리기 10회.','높은 쪽 어깨 반대 방향으로 고개를 기울이고 손으로 지긋이 20초 유지(좌우 2회).','문틀에 팔을 걸고 가슴을 앞으로 내밀어 20초 유지 × 2회.'] },
-  hip:{ name:'고관절 스트레칭', min:4, why:'골반 기울기 경향',
-    steps:['한쪽 무릎을 꿇은 런지 자세에서 골반을 앞으로 밀어 30초 유지.','반대쪽도 같은 방법으로 30초, 좌우 2회씩 반복.','누워서 한쪽 무릎을 가슴으로 당겨 20초씩 유지.'] },
-  neck:{ name:'목 옆 스트레칭', min:2, why:'머리 기울기 경향',
-    steps:['허리를 펴고 앉아 한 손으로 의자 끝을 잡습니다.','반대쪽으로 고개를 천천히 기울여 15초 유지.','좌우 번갈아 3회씩 반복합니다.'] },
-  wall:{ name:'벽 자세 운동', min:4, why:'전체 자세 균형',
-    steps:['뒤통수·어깨·엉덩이·발뒤꿈치를 벽에 붙이고 1분간 바른 자세를 유지합니다.','팔을 W자로 벽에 붙인 채 천천히 Y자로 올렸다 내리기(벽 천사) 10회.','호흡을 편하게 유지하며 2세트 반복합니다.'] }
+  move:{ name:'30~45분마다 자세 바꾸기', min:2, why:'모든 참여자에게 가장 먼저 권해요',
+    steps:['공부나 스마트폰을 시작할 때 30~45분 알림을 맞춰 두어요.','알림이 울리면 일어나 1~2분 걷거나 몸을 가볍게 움직여요.','책과 화면은 눈높이 가까이 올리고, 한 자세로 오래 버티지 않아요.'] },
+  chin:{ name:'가벼운 턱 당기기', min:2, why:'목 각도(전방 머리 자세)',
+    steps:['편하게 앉거나 서서 시선은 정면을 봐요.','턱을 힘주지 않고 살짝 뒤로 당겨 3~5초 머물러요. 세게 당기거나 오래 버티지 않아요.','5~10회만 하고, 목이 아프거나 어지러우면 바로 멈춰요.'] },
+  chest:{ name:'가슴 열기 스트레칭', min:3, why:'어깨각(어깨가 앞으로 말린 자세)',
+    steps:['문틀에 팔꿈치를 어깨 높이로 대고 서요.','몸을 천천히 앞으로 내밀어 가슴 앞쪽이 가볍게 늘어나는 곳에서 15~20초 머물러요.','2~3회 반복해요. 어깨를 계속 뒤로 젖힌 채 버티지는 않아요.'] },
+  balance:{ name:'좌우 고르게 쓰기', min:2, why:'어깨 좌우 높이 차이',
+    steps:['가방은 양쪽 어깨로 메고, 짝다리 대신 양발에 체중을 고르게 실어요.','어깨를 천천히 앞뒤로 5번씩 돌려 긴장을 풀어요.','같은 조건에서 다시 촬영해 차이가 반복되는지 확인해요.'] },
+  neck:{ name:'목 옆 가볍게 늘이기', min:2, why:'머리 좌우 기울기',
+    steps:['허리를 편하게 세우고 앉아요.','고개를 천천히 옆으로 기울여 가볍게 늘어나는 곳에서 10~15초 머물러요.','좌우 2~3회씩 하고, 당기는 느낌이 아프면 멈춰요.'] },
+  hip:{ name:'골반 주변 풀기', min:3, why:'골반 좌우 높이 차이',
+    steps:['한쪽 무릎을 꿇고 반대쪽 발을 앞에 둔 자세에서 골반을 살짝 앞으로 보내 20초 머물러요.','반대쪽도 같은 방법으로 해요.','앉아 있을 때 다리를 꼬지 않고 양쪽 엉덩이에 체중을 고르게 실어요.'] },
+  consult:{ name:'다시 측정하고, 증상이 있으면 상담하기', min:0, why:'재측정 알림 또는 선별 양성 항목',
+    steps:['같은 장소·거리·높이에서 3회 다시 촬영해 결과가 반복되는지 확인해요.','목·어깨·허리 통증, 저림, 잦은 두통 같은 증상이 계속되면 보건실이나 전문가와 상담해요.','이 결과는 진단이 아니라 학생 연구용 선별 결과예요.'] }
 };
 
 /* =========================================================
@@ -417,7 +419,7 @@ async function copyText(text){
    ========================================================= */
 const LS_KEY = 'adhl-posture-v1';
 const DEFAULT_PIN_HASH = 'fae07a6922e7acc82185e7160136eaeb6618c68040ab9da0ff804a29ea81d9e1';
-const CRIT_KEYS = ['cvaThreshold','cvaSevere','cvaWeight','cvaMax','headTol','headWeight','headMax','shoulderTol','shoulderWeight','shoulderMax','pelvisTol','pelvisWeight','pelvisMax','gradeGood','gradeCaution'];
+const CRIT_KEYS = ['cvaGood','cvaAlert','saGood','saAlert','tiltGood','tiltRetake','retakeSpread','penWarn','penPos','gradeGood','gradeCaution'];
 const Store = {
   mode: 'local', db: null, user: null, ready: false,
   surveys: [], records: [], settings: {...DEFAULT_SETTINGS},
@@ -621,46 +623,76 @@ function lineTilt(a, b, w, h){
   return { deg: Math.abs(deg), high: Math.abs(deg) < 0.3 ? '수평' : (deg > 0 ? '사진 왼쪽' : '사진 오른쪽') };
 }
 function computeMetrics(front, side){
-  const m = { headTilt:null, shoulderTilt:null, pelvisTilt:null, cva:null, high:{} };
+  const m = { headTilt:null, shoulderTilt:null, pelvisTilt:null, trunkTilt:null, cva:null, sa:null, high:{} };
   if (front && front.points){
     const p = front.points, w = front.w, h = front.h;
     const pair = (k1,k2) => { const a=p[k1], b=p[k2]; return a.x <= b.x ? lineTilt(a,b,w,h) : lineTilt(b,a,w,h); };
     const he = pair('earL','earR'), sh = pair('shL','shR'), hp = pair('hipL','hipR');
     m.headTilt = he.deg; m.shoulderTilt = sh.deg; m.pelvisTilt = hp.deg;
     m.high = { head: he.high, shoulder: sh.high, pelvis: hp.high };
+    // 신체 중앙 수직선: 양 골반 가운데 → 양 어깨 가운데 선이 수직에서 벗어난 각도
+    const ms = { x:(p.shL.x+p.shR.x)/2, y:(p.shL.y+p.shR.y)/2 }, mh = { x:(p.hipL.x+p.hipR.x)/2, y:(p.hipL.y+p.hipR.y)/2 };
+    m.trunkTilt = Math.abs(Math.atan2((ms.x-mh.x)*w, Math.abs(mh.y-ms.y)*h || 1e-6) * 180 / Math.PI);
   }
   if (side && side.points){
-    const e = side.points.ear, s = side.points.c7 || side.points.shoulder, w = side.w, h = side.h;
-    const dx = Math.abs(e.x - s.x) * w, dy = (s.y - e.y) * h;
-    m.cva = Math.atan2(dy, dx || 1e-6) * 180 / Math.PI;
+    const P = side.points, w = side.w, h = side.h, c7 = P.c7 || P.shoulder;
+    // 두개척추각(CVA): C7을 지나는 수평선과 C7–귀 구슬 선 사이 각
+    m.cva = Math.atan2((c7.y - P.ear.y) * h, Math.abs(P.ear.x - c7.x) * w || 1e-6) * 180 / Math.PI;
+    // 어깨각(SA): C7을 지나는 수평선과 C7–견봉 선 사이 각
+    if (P.c7 && P.shoulder) m.sa = Math.atan2((P.shoulder.y - P.c7.y) * h, Math.abs(P.shoulder.x - P.c7.x) * w || 1e-6) * 180 / Math.PI;
   }
   return m;
 }
+const median = arr => { const a = arr.filter(Number.isFinite).sort((x,y)=>x-y), n = a.length; return n ? (n % 2 ? a[(n-1)/2] : (a[n/2-1] + a[n/2]) / 2) : null; };
+// 여러 번 촬영한 값의 중앙값과 차이(최댓값−최솟값)
+function aggregateShots(frontList, sideList){
+  const m = { high:{}, n:{ front:frontList.length, side:sideList.length }, spread:{}, all:{} };
+  const take = (list, keys) => keys.forEach(k => { const v = list.map(x => x[k]).filter(Number.isFinite); m[k] = v.length ? median(v) : null; if (v.length){ m.all[k] = v.map(x => Math.round(x*10)/10); } if (v.length > 1) m.spread[k] = Math.max(...v) - Math.min(...v); });
+  take(frontList, ['headTilt','shoulderTilt','pelvisTilt','trunkTilt']);
+  take(sideList, ['cva','sa']);
+  m.high = (frontList[frontList.length-1] || {}).high || {};
+  return m;
+}
 function evaluate(m, st = Store.settingsFull){
-  const items = [];
-  const ded = (v, tol, wgt, max) => Math.min(max, Math.max(0, v - tol) * wgt);
-  if (m.headTilt != null) items.push({ key:'head', label:'머리 기울기', value:m.headTilt, unit:'°', std:`${st.headTol}° 이하`, d:ded(m.headTilt, st.headTol, st.headWeight, st.headMax), flag:m.headTilt > st.headTol, note:m.high?.head });
-  if (m.shoulderTilt != null) items.push({ key:'shoulder', label:'어깨 좌우 높이 차이', value:m.shoulderTilt, unit:'°', std:`${st.shoulderTol}° 이하`, d:ded(m.shoulderTilt, st.shoulderTol, st.shoulderWeight, st.shoulderMax), flag:m.shoulderTilt > st.shoulderTol, note:m.high?.shoulder });
-  if (m.pelvisTilt != null) items.push({ key:'pelvis', label:'골반 좌우 높이 차이', value:m.pelvisTilt, unit:'°', std:`${st.pelvisTol}° 이하`, d:ded(m.pelvisTilt, st.pelvisTol, st.pelvisWeight, st.pelvisMax), flag:m.pelvisTilt > st.pelvisTol, note:m.high?.pelvis });
-  if (m.cva != null) items.push({ key:'cva', label:'목 각도 (귀–어깨, CVA)', value:m.cva, unit:'°', std:`${st.cvaThreshold}° 이상`, d:ded(st.cvaThreshold, m.cva, st.cvaWeight, st.cvaMax), flag:m.cva < st.cvaThreshold, note:'' });
-  if (!items.length) return null;
-  items.forEach(it => {
-    if (!it.flag) it.level = 0;
-    else if (it.key === 'cva') it.level = it.value < st.cvaSevere ? 2 : 1;
-    else { const tol = st[it.key+'Tol']; it.level = it.value > tol*2 ? 2 : 1; }
+  if (!m) return null;
+  const items = [], all = m.all || {}, spread = m.spread || {};
+  const add = it => { it.retake = Number.isFinite(spread[it.mkey]) && spread[it.mkey] >= st.retakeSpread; items.push(it); };
+  if (Number.isFinite(m.cva)){
+    const v = m.cva, lv = v >= st.cvaGood ? 0 : v >= st.cvaAlert ? 1 : 2;
+    add({ key:'cva', mkey:'cva', label:'목 각도 (CVA)', value:v, level:lv, tag:['양호','주의','재측정 알림'][lv], std:`${st.cvaGood}° 이상 양호 · ${st.cvaAlert}~${fmt(st.cvaGood-0.1)}° 주의 · ${st.cvaAlert}° 미만 재측정 알림`, counted:true });
+  }
+  if (Number.isFinite(m.sa)){
+    const v = m.sa, lv = v > st.saGood ? 0 : v >= st.saAlert ? 1 : 2;
+    add({ key:'sa', mkey:'sa', label:'어깨각 (SA)', value:v, level:lv, tag:['양호','주의','말린 어깨 선별 양성'][lv], std:`${st.saGood}° 초과 양호 · ${st.saAlert}~${st.saGood}° 주의 · ${st.saAlert}° 미만 선별 양성`, counted:true });
+  }
+  [['head','headTilt','머리 좌우 기울기 (귀 연결선)'],['shoulder','shoulderTilt','어깨 좌우 높이 (견봉 연결선)'],['pelvis','pelvisTilt','골반 좌우 높이']].forEach(([key, mk, label]) => {
+    if (!Number.isFinite(m[mk])) return;
+    const v = m[mk]; let lv = 0, tag = '양호';
+    if (v > st.tiltRetake){ const rep = (all[mk] || []).filter(x => x > st.tiltRetake).length >= 2; lv = rep ? 2 : 1; tag = rep ? '비대칭 선별 양성' : '재측정 필요'; }
+    else if (v > st.tiltGood){ lv = 1; tag = '재측정'; }
+    add({ key, mkey:mk, label, value:v, level:lv, tag, std:`0~${st.tiltGood}° 양호 · ${st.tiltGood}~${st.tiltRetake}° 재측정 · ${st.tiltRetake}° 초과 반복 시 선별 양성`, counted:true, note:(m.high||{})[key] });
   });
-  const total = items.reduce((a,b)=>a+b.d, 0);
-  const score = Math.max(0, Math.round(100 - total));
-  const grade = score >= st.gradeGood ? {t:'양호',c:'good'} : score >= st.gradeCaution ? {t:'주의',c:'warn'} : {t:'개선 필요',c:'bad'};
-  const tend = [], ex = [];
-  const byKey = k => items.find(i => i.key === k);
-  if (byKey('cva')?.flag){ tend.push(byKey('cva').level===2 ? '뚜렷한 거북목 자세 경향' : '약한 거북목 자세 경향'); ex.push('chin'); }
-  if (byKey('shoulder')?.flag){ tend.push('어깨 불균형 경향'); ex.push('shoulder'); }
-  if (byKey('pelvis')?.flag){ tend.push('골반 기울기 경향'); ex.push('hip'); }
-  if (byKey('head')?.flag){ tend.push('머리 기울기 경향'); ex.push('neck'); }
-  if (tend.length >= 2 || score < st.gradeCaution){ tend.push('전체 자세 불균형 경향'); }
-  ex.push('wall');
-  return { items, score, grade, tendencies:tend, exercises:[...new Set(ex)], partial: items.length < 4 };
+  if (Number.isFinite(m.trunkTilt)) add({ key:'trunk', mkey:'trunkTilt', label:'몸통 중심선 기울기', value:m.trunkTilt, level:0, tag:'참고', std:'신체 중앙 수직선 기준 참고값', counted:false });
+  if (!items.length) return null;
+  const pen = items.filter(i => i.counted).reduce((a,i) => a + (i.level === 2 ? st.penPos : i.level === 1 ? st.penWarn : 0), 0);
+  const score = Math.max(0, Math.round(100 - pen));
+  const grade = score >= st.gradeGood ? {t:'양호',c:'good'} : score >= st.gradeCaution ? {t:'주의',c:'warn'} : {t:'관리 필요',c:'bad'};
+  const by = k => items.find(i => i.key === k);
+  const tags = [], messages = [], ex = ['move'];
+  const c = by('cva');
+  if (c && c.level === 1){ tags.push('목 각도 주의'); messages.push('목 각도가 주의 구간이에요. 화면을 눈높이로 올리고 자주 자세를 바꿔 보세요.'); ex.push('chin'); }
+  if (c && c.level === 2){ tags.push('전방 머리 자세 관찰'); messages.push('전방 머리 자세가 관찰됩니다. 자세를 바꾸고 같은 조건에서 다시 측정해 보세요. 증상이 있으면 전문가 상담을 고려하세요.'); ex.push('chin','consult'); }
+  const s = by('sa');
+  if (s && s.level === 1){ tags.push('어깨 말림 주의'); messages.push('어깨가 약간 앞으로 나온 편이에요.'); ex.push('chest'); }
+  if (s && s.level === 2){ tags.push('말린 어깨 관찰'); messages.push('어깨가 앞으로 말린 자세가 관찰됩니다. 같은 조건에서 다시 측정해 확인해 보세요.'); ex.push('chest','consult'); }
+  [['shoulder','어깨 높이','어깨 높이가 좌우로 달라요','balance'],['head','머리 기울기','머리가 한쪽으로 기울어 있어요','neck'],['pelvis','골반 높이','골반 높이가 좌우로 달라요','hip']].forEach(([k, name, desc, e]) => {
+    const it = by(k); if (!it || !it.level) return;
+    if (it.level === 2){ tags.push(`${name} 비대칭 반복`); messages.push(`${desc}. 여러 번 찍어도 반복해서 관찰됩니다.`); ex.push(e,'consult'); }
+    else { tags.push(`${name} 재측정`); messages.push(`${desc}. 같은 조건에서 다시 촬영해 확인해 보세요.`); ex.push(e); }
+  });
+  const retake = items.some(i => i.retake);
+  if (retake) messages.unshift(`여러 번 찍은 사진의 측정값 차이가 ${st.retakeSpread}° 이상인 항목이 있어요. 같은 자세로 다시 촬영해 주세요.`);
+  return { items, score, grade, tags, messages, exercises:[...new Set(ex)], retake, partial: !by('cva') || !by('shoulder'), shots: m.n || null };
 }
 function latestMeasure(rec, phase){
   const list = (rec.measures || []).filter(x => x.phase === phase).sort((a,b)=>b.at-a.at);
@@ -822,7 +854,7 @@ function stepWelcome(){
       const id = isKiosk() ? uid('p') : Store.selfId;
       const prev = getRec(id);
       R.rec = prev ? { ...clone(prev), name, consent:true } : { id, name, consent:true, createdAt: Date.now(), surveys:{}, measures:[] };
-      R.phase = 'pre'; R.lastMeasure = null; A.front = null; A.side = null; R.answers = {};
+      R.phase = 'pre'; R.lastMeasure = null; resetShots(); R.answers = {};
       if (!(await saveRec())){
         if (Store.mode === 'firebase'){ btn.disabled = false; btn.textContent = '설문 시작하기'; say(Store.fbUid ? '서버에 저장하지 못했어요. 연구자에게 Firestore 보안 규칙을 확인해 달라고 알려 주세요.' : (/admin-restricted|operation-not-allowed/.test(Store.fbAuthErr||'') ? 'Firebase에서 익명 로그인이 꺼져 있어요. 연구자에게 Authentication > 로그인 방법 > 익명을 켜 달라고 알려 주세요.' : '서버에 접속하지 못했어요 (' + (Store.fbAuthErr || '로그인 안 됨') + '). 페이지를 새로 고친 뒤 다시 해 주세요.')); return; }
         if (Store.mode === 'cloud'){ btn.disabled = false; btn.textContent = '설문 시작하기'; say('응답을 저장할 권한이 없어요. 연구 담당자에게 이 페이지의 참여 권한을 요청하세요.'); return; }
@@ -942,9 +974,9 @@ function stepPhoto(){
     <h2>${post ? '스트레칭 후 다시 찍어 주세요' : '자세 사진을 찍어 주세요'}</h2>
     <p class="sub">${post ? '처음과 같은 위치, 같은 거리, 같은 높이에서 찍어야 정확하게 비교할 수 있어요.' : 'AI가 기준점(귀, 목 뒤 7번 목뼈, 어깨, 골반)을 찾아요. 점이 어긋나 있으면 끌어서 맞춰 주세요. 끄는 동안 확대경이 나와요.'}</p>
     <div class="tips">
-      <div><b>편하게 서기</b>평소처럼 힘을 빼고 차렷 자세로 서요.</div>
+      <div><b>편하게 서기</b>평소처럼 힘을 빼고 서요. 몸은 카메라를 정면 또는 정확히 옆(90°)으로 향해요.</div>
       <div><b>몸 전체와 귀가 보이게</b>머리부터 발까지 나오게, 귀를 가리는 머리카락은 넘겨요.</div>
-      <div><b>휴대폰은 수평으로, 가슴 높이에서</b>기울이거나 위아래에서 찍으면 각도가 달라져요.</div>
+      <div><b>카메라 고정</b>휴대폰을 수평으로, 2~3m 거리·가슴 높이에 고정하고 밝고 고른 조명에서 찍어요.</div>
     </div>
     <div class="slots">
       ${slotHtml('front','정면 사진','앞을 보고 선 모습')}
@@ -982,33 +1014,47 @@ function slotHtml(k, title, desc){
     </div>
   </div>`;
 }
+function levelPill(it){
+  const c = it.level === 2 ? 'bad' : it.level === 1 ? 'warn' : it.counted === false ? 'gray' : 'good';
+  return `<span class="pill ${c}">${esc(it.tag)}</span>`;
+}
+function shotMetrics(k){
+  const hist = (A.hist && A.hist[k]) || [];
+  const cur = A[k] ? computeMetrics(k === 'front' ? A[k] : null, k === 'side' ? A[k] : null) : null;
+  return cur ? [...hist, cur] : hist.slice();
+}
 let lastEval = null;
 function untouchedPoints(){
   const out = [];
-  ['front','side'].forEach(k => { const s = A[k]; if (!s || s.method !== 'manual') return;
-    Object.keys(s.points).forEach(key => { if (!(s.touched||{})[key]) out.push(`${k==='front'?'정면':'측면'} ${POINT_INFO[key].label}`); }); });
+  ['front','side'].forEach(k => { const s = A[k]; if (!s) return;
+    Object.keys(s.points).forEach(key => {
+      const need = s.method === 'manual' || (k === 'side' && key === 'c7');   // C7은 AI가 추정만 하므로 항상 직접 확인
+      if (need && !(s.touched||{})[key]) out.push(`${k==='front'?'정면':'측면'} ${POINT_INFO[key].label}`);
+    }); });
   return out;
 }
 function updateResult(){
-  const m = computeMetrics(A.front, A.side); lastEval = { m, ev: evaluate(m) };
+  const m = aggregateShots(shotMetrics('front'), shotMetrics('side'));
+  lastEval = { m, ev: evaluate(m) };
   softOff($('#toResult'), !(A.front || A.side) || untouchedPoints().length > 0);
   if ((A.front || A.side) && $('#pMsg') && !untouchedPoints().length) $('#pMsg').textContent = '';
 }
 async function finishMeasure(){
   if (!lastEval || !lastEval.ev){ const pm = $('#pMsg'); if (pm) pm.textContent = '정면이나 측면 사진을 한 장 이상 올려 주세요.'; return; }
   const left = untouchedPoints();
-  if (left.length){ const pm = $('#pMsg'); if (pm) pm.textContent = `AI가 찾지 못해 직접 옮겨야 하는 점이 남았어요: ${left.join(', ')}. 점선 동그라미 점을 실제 위치로 끌어 주세요.`; return; }
+  if (left.length){ const pm = $('#pMsg'); if (pm) pm.textContent = `직접 확인해야 하는 점이 남았어요: ${left.join(', ')}. 점선 동그라미 점을 실제 위치로 끌어 주세요.`; return; }
   const ptsOf = k => A[k] ? { w:A[k].w, h:A[k].h, points:A[k].points, method: A[k].method==='manual' ? 'manual' : A[k].method + (A[k].edited?'+edit':'') } : null;
-  const m = lastEval.m;
-  const meas = { id: uid('m'), phase: R.phase, at: Date.now(), score: lastEval.ev.score,
-    metrics: { headTilt:m.headTilt, shoulderTilt:m.shoulderTilt, pelvisTilt:m.pelvisTilt, cva:m.cva, high:m.high },
+  const m = lastEval.m, ev = lastEval.ev;
+  const meas = { id: uid('m'), phase: R.phase, at: Date.now(), score: ev.score,
+    metrics: { headTilt:m.headTilt, shoulderTilt:m.shoulderTilt, pelvisTilt:m.pelvisTilt, trunkTilt:m.trunkTilt, cva:m.cva, sa:m.sa, high:m.high, all:m.all, spread:m.spread, n:m.n },
+    shots: m.n, tags: ev.tags, solutions: ev.exercises, retake: ev.retake,
     front: ptsOf('front'), side: ptsOf('side') };
   R.rec.measures = [...(R.rec.measures||[]), meas];
   const btn = $('#toResult'); btn.disabled = true;
   if (await saveRec()){ R.lastMeasure = meas; go('result'); }
   else { R.rec.measures = R.rec.measures.filter(x => x.id !== meas.id); btn.disabled = false; }
 }
-function levelPill(it){ return it.level===2 ? '<span class="pill bad">뚜렷함</span>' : it.level===1 ? '<span class="pill warn">약간</span>' : '<span class="pill good">정상 범위</span>'; }
+function resetShots(){ A.front = null; A.side = null; A.hist = { front:[], side:[] }; }
 function ringSvg(score, c){
   const r=56, C=2*Math.PI*r, off=C*(1-score/100);
   return `<svg viewBox="0 0 132 132"><circle cx="66" cy="66" r="${r}" fill="none" stroke="#e9ecef" stroke-width="10"/><circle cx="66" cy="66" r="${r}" fill="none" stroke="${c}" stroke-width="10" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${off}" transform="rotate(-90 66 66)"/></svg>`;
@@ -1016,44 +1062,50 @@ function ringSvg(score, c){
 function stepResult(){
   const meas = R.lastMeasure; if (!meas) return go('photo');
   const ev = evaluate(meas.metrics || {}); if (!ev) return go('photo');
+  const st = Store.settingsFull;
   const colorOf = c => c==='good'?cssVar('--good'):c==='warn'?'#c98a12':cssVar('--bad');
   const pre = meas.phase === 'post' ? latestMeasure(R.rec, 'pre') : null;
   const preEv = pre ? evaluate(pre.metrics||{}) : null;
-  const exMin = ev.exercises.reduce((a,k)=>a+EXERCISES[k].min,0);
-  const noteFor = it => it.key==='cva' ? (it.flag ? '머리가 어깨보다 앞으로 나온 편' : '머리와 어깨 정렬이 좋아요') : (it.flag ? `${it.note}이 더 높아요` : '측정 오차 범위 안이에요');
-  const cmpRows = preEv ? ['score','cva','shoulderTilt','pelvisTilt','headTilt'].map(k => {
+  const exMin = ev.exercises.reduce((a,k)=>a+(EXERCISES[k]?EXERCISES[k].min:0),0);
+  const n = meas.shots || {};
+  const cmpKeys = [['score','자세 점수','점',1],['cva','목 각도','°',1],['sa','어깨각','°',1],['shoulderTilt','어깨 높이 차이','°',-1],['headTilt','머리 기울기','°',-1],['pelvisTilt','골반 높이 차이','°',-1]];
+  const cmpRows = preEv ? cmpKeys.map(([k,l,u,dir]) => {
     const a = k==='score' ? preEv.score : pre.metrics[k], b = k==='score' ? ev.score : meas.metrics[k];
-    if (a==null || b==null) return '';
-    const L = {score:['자세 점수','점',1],cva:['목 각도','°',1],shoulderTilt:['어깨 높이 차이','°',-1],pelvisTilt:['골반 높이 차이','°',-1],headTilt:['머리 기울기','°',-1]}[k];
-    const d = b - a, better = d*L[2] > 0.05, worse = d*L[2] < -0.05;
-    return `<tr><td>${L[0]}</td><td class="num">${fmt(a,k==='score'?0:1)}${L[1]}</td><td class="num">${fmt(b,k==='score'?0:1)}${L[1]}</td><td class="num ${better?'delta-up':worse?'delta-down':''}">${d>0?'+':''}${fmt(d,k==='score'?0:1)}</td></tr>`;
+    if (!Number.isFinite(a) || !Number.isFinite(b)) return '';
+    const d = b - a, better = d*dir > 0.05, worse = d*dir < -0.05;
+    return `<tr><td>${l}</td><td class="num">${fmt(a,k==='score'?0:1)}${u}</td><td class="num">${fmt(b,k==='score'?0:1)}${u}</td><td class="num ${better?'delta-up':worse?'delta-down':''}">${d>0?'+':''}${fmt(d,k==='score'?0:1)}</td></tr>`;
   }).join('') : '';
+  const cvaIt = ev.items.find(i => i.key === 'cva');
   $('#flow').innerHTML = stepperHtml() + `
   <div class="panel">
     <div class="score-hero">
       <div class="ring">${ringSvg(ev.score, colorOf(ev.grade.c))}<div class="n"><div><b>${ev.score}</b><span>100점 만점</span></div></div></div>
       <div>
-        <p class="small muted" style="margin:0">${esc(R.rec.name)}님의 ${meas.phase==='post'?'스트레칭 후 ':''}자세 균형 점수</p>
-        <div class="row" style="margin-top:4px"><h2 style="margin:0">${ev.grade.t==='양호'?'균형이 잘 잡혀 있어요':ev.grade.t==='주의'?'조금 신경 쓰면 좋아요':'자세 관리가 필요해요'}</h2><span class="pill ${ev.grade.c}">${ev.grade.t}</span></div>
-        <div class="tend">${ev.tendencies.length ? ev.tendencies.map(t=>`<span class="pill warn">${esc(t)}</span>`).join('') : '<span class="pill good">뚜렷한 불균형 경향 없음</span>'}</div>
-        ${ev.partial ? `<p class="small muted" style="margin:8px 0 0">${!meas.side ? '측면 사진이 없어 목 각도는 빠진 점수예요.' : '정면 사진이 없어 좌우 균형은 빠진 점수예요.'}</p>` : ''}
+        <p class="small muted" style="margin:0">${esc(R.rec.name)}님의 ${meas.phase==='post'?'스트레칭 후 ':''}자세 선별 결과 · 정면 ${n.front||0}회, 측면 ${n.side||0}회 촬영의 중앙값</p>
+        <div class="row" style="margin-top:4px"><h2 style="margin:0">${ev.grade.t==='양호'?'대부분 양호 범위예요':ev.grade.t==='주의'?'살펴볼 항목이 있어요':'다시 확인이 필요한 항목이 있어요'}</h2><span class="pill ${ev.grade.c}">${ev.grade.t}</span></div>
+        <div class="tend">${ev.tags.length ? ev.tags.map(t=>`<span class="pill warn">${esc(t)}</span>`).join('') : '<span class="pill good">특별히 살펴볼 항목 없음</span>'}</div>
       </div>
     </div>
-    <div class="mcards">${ev.items.map(it=>`<div class="mcard"><div class="row"><span class="l">${it.label.replace(' (귀–어깨, CVA)','')}</span>${levelPill(it)}</div><div class="v">${fmt(it.value)}°</div><div class="s">${noteFor(it)} · 기준 ${it.std}</div></div>`).join('')}</div>
+    ${ev.retake ? `<p class="notice" style="margin:16px 0 0"><b>다시 촬영해 주세요.</b> 여러 번 찍은 사진의 값 차이가 ${st.retakeSpread}° 이상이에요.</p>` : ''}
+    ${(n.front||0) < 3 || (n.side||0) < 3 ? `<p class="small muted" style="margin:12px 0 0">같은 자세로 정면·측면을 각각 3회 찍으면 더 믿을 수 있는 결과(중앙값)가 나와요.</p>` : ''}
+    <div class="mcards">${ev.items.map(it=>`<div class="mcard"><div class="row"><span class="l">${esc(it.label)}</span>${levelPill(it)}</div><div class="v">${fmt(it.value)}°</div><div class="s">${esc(it.std)}${it.note && it.note!=='수평' && it.level ? ` · ${esc(it.note)}이 높음` : ''}${it.retake ? ' · <b style="color:var(--bad)">촬영 간 차이 큼</b>' : ''}</div></div>`).join('')}</div>
+    ${cvaIt && cvaIt.level === 2 ? `<p class="small" style="margin:12px 0 0;color:var(--ink-2)">※ ${st.cvaAlert}° 미만은 본 서비스의 내부 재측정 알림값이며, 임상적으로 검증된 위험 기준이 아닙니다.</p>` : ''}
   </div>
-  ${preEv ? `<div class="panel"><h3>처음 측정과 비교</h3><div class="tbl-wrap"><table class="t cmp"><thead><tr><th>항목</th><th class="num">처음</th><th class="num">스트레칭 후</th><th class="num">변화</th></tr></thead><tbody>${cmpRows}</tbody></table></div>
-    <p class="small muted" style="margin:10px 0 0">짧은 스트레칭 직후의 변화예요. 촬영 자세에 따라 값이 조금씩 달라질 수 있어요.</p></div>` : ''}
+  ${ev.messages.length ? `<div class="panel"><h3>결과 안내</h3><ul style="margin:0;padding-left:18px;display:grid;gap:6px;color:var(--ink-2)">${ev.messages.map(t=>`<li>${esc(t)}</li>`).join('')}</ul></div>` : ''}
+  ${preEv ? `<div class="panel"><h3>처음 측정과 비교 (나의 기준선)</h3><div class="tbl-wrap"><table class="t cmp"><thead><tr><th>항목</th><th class="num">처음</th><th class="num">스트레칭 후</th><th class="num">변화</th></tr></thead><tbody>${cmpRows}</tbody></table></div>
+    <p class="small muted" style="margin:10px 0 0">키·체형에 따라 사람마다 기준이 달라서, 다른 사람과 비교하기보다 나의 처음 값과 변화를 보는 것이 더 의미 있어요.</p></div>` : ''}
   <div class="panel">
-    <div class="row" style="align-items:baseline"><h3 style="margin:0">추천 스트레칭</h3><span class="spacer"></span><span class="small muted">모두 하면 약 ${exMin}분</span></div>
-    <p class="sub" style="margin-top:6px">통증이 느껴지면 바로 멈추세요.</p>
-    <div class="ex-list">${ev.exercises.map((k,i)=>{const x=EXERCISES[k];return `<details class="ex" ${i===0?'open':''}><summary><div><div class="why">${esc(k==='wall'&&!ev.tendencies.length?'기본 자세 유지':x.why)}</div><h4>${x.name}</h4></div><span class="mins">${x.min}분</span></summary><ol>${x.steps.map(s=>`<li>${esc(s)}</li>`).join('')}</ol></details>`}).join('')}</div>
+    <div class="row" style="align-items:baseline"><h3 style="margin:0">나에게 맞는 해결책</h3><span class="spacer"></span><span class="small muted">약 ${exMin}분</span></div>
+    <p class="sub" style="margin-top:6px">억지로 버티는 교정보다 자주 움직이는 것이 안전해요. 통증이 느껴지면 바로 멈추세요.</p>
+    <div class="ex-list">${ev.exercises.map((k,i)=>{const x=EXERCISES[k]; if(!x) return ''; return `<details class="ex" ${i<2?'open':''}><summary><div><div class="why">${esc(x.why)}</div><h4>${x.name}</h4></div>${x.min?`<span class="mins">${x.min}분</span>`:''}</summary><ol>${x.steps.map(s=>`<li>${esc(s)}</li>`).join('')}</ol></details>`}).join('')}</div>
     <div class="actions">
       ${meas.phase==='pre' ? `<button class="btn" id="rAgain">스트레칭 후 다시 측정하기</button>` : `<button class="btn ghost" id="rRetake">사진 다시 찍기</button>`}
       <span class="spacer"></span><button class="btn primary" id="rDone">참여 마치기</button>
     </div>
-  </div>`;
-  if ($('#rAgain')) $('#rAgain').onclick = () => { A.front = null; A.side = null; R.phase = 'post'; go('photo'); };
-  if ($('#rRetake')) $('#rRetake').onclick = () => { A.front = null; A.side = null; go('photo'); };
+  </div>
+  <p class="small muted" style="margin:14px 4px 0">참고: 15~17세 청소년 275명의 평균 목 각도는 47.4°±5.2°였어요(Ruivo 등, Brazilian Journal of Physical Therapy, 2014). 이 값은 한 집단의 평균일 뿐 정상·비정상 기준이 아니에요. 이 결과는 진단이 아니라 학생 연구용 선별 결과예요.</p>`;
+  if ($('#rAgain')) $('#rAgain').onclick = () => { resetShots(); R.phase = 'post'; go('photo'); };
+  if ($('#rRetake')) $('#rRetake').onclick = () => { resetShots(); go('photo'); };
   $('#rDone').onclick = () => go('done');
 }
 function stepDone(){
@@ -1069,7 +1121,7 @@ function stepDone(){
     </div>
   </div>`;
   if ($('#dView')) $('#dView').onclick = () => go('result');
-  if ($('#dNext')) $('#dNext').onclick = () => { R.rec = null; R.lastMeasure = null; R.phase = 'pre'; R.answers = {}; A.front = null; A.side = null; go('welcome'); };
+  if ($('#dNext')) $('#dNext').onclick = () => { R.rec = null; R.lastMeasure = null; R.phase = 'pre'; R.answers = {}; resetShots(); go('welcome'); };
 }
 
 /* =========================================================
@@ -1138,7 +1190,7 @@ function loadPose(){
   return posePromise;
 }
 
-const A = { phase:'pre', front:null, side:null };
+const A = { phase:'pre', front:null, side:null, hist:{ front:[], side:[] } };
 
 function bindSlot(k){
   const input = $('#file-'+k), cam = $('#cam-'+k), drop = $('#drop-'+k);
@@ -1196,7 +1248,7 @@ const avgPt = (a, b) => b ? { x:(a.x+b.x)/2, y:(a.y+b.y)/2, v:Math.min(a.v,b.v) 
 function estimateC7(ear, shoulder, nose, w, h){
   const dx = (ear.x - shoulder.x) * w, dy = (ear.y - shoulder.y) * h, d = Math.hypot(dx, dy) || 1;
   const facing = Math.sign((nose.x - ear.x) || 1);           // +1: 사진 오른쪽을 봄
-  return { x: Math.min(1,Math.max(0, shoulder.x - facing * 0.5 * d / w)), y: Math.min(1,Math.max(0, shoulder.y - 0.22 * d / h)) };
+  return { x: Math.min(1,Math.max(0, shoulder.x - facing * 0.26 * d / w)), y: Math.min(1,Math.max(0, shoulder.y - 0.33 * d / h)) };
 }
 /* ---- 외부 자세 분석 API (선택) ----
    요청: POST {apiUrl}  JSON {"image":"<JPEG base64>","view":"front|side","width":W,"height":H}
@@ -1298,8 +1350,8 @@ async function runAI(k){
 }
 
 const POINT_GUIDE = {
-  front: [['--ear','귀','양쪽 귓구멍 위치'],['--sh','어깨','어깨 맨 끝의 뼈(견봉)'],['--hip','골반','허리 아래 골반 양옆']],
-  side:  [['--ear','귀 구슬','귓구멍 바로 앞 작은 돌기'],['--c7','목 뒤 7번 목뼈','고개를 숙이면 가장 튀어나오는 뼈'],['--sh','어깨','어깨 관절 중심'],['--hip','골반','허리 옆 골반 뼈']]
+  front: [['--ear','귀(이주)','양쪽 귓구멍 바로 앞 작은 돌기'],['--sh','어깨 끝 뼈(견봉)','양쪽 어깨 맨 끝의 뼈'],['--hip','골반','허리 아래 골반 양옆']],
+  side:  [['--ear','귀 구슬','귓구멍 바로 앞 작은 돌기'],['--c7','목 뒤 7번 목뼈 (꼭 직접 확인)','고개를 숙이면 가장 튀어나오는 뼈'],['--sh','어깨 끝 뼈(견봉)','어깨 위쪽 끝에 튀어나온 뼈'],['--hip','골반','허리 옆 골반 뼈']]
 };
 function mountEditor(k){
   const box = $('#ed-'+k); if (!box) return;
@@ -1307,6 +1359,7 @@ function mountEditor(k){
     <ul class="pguide">${POINT_GUIDE[k].map(([c,n,d])=>`<li><i style="background:var(${c})"></i><b>${n}</b><span>${d}</span></li>`).join('')}</ul>
     <div class="row" style="margin-top:10px">
       <label class="btn sm"><input type="file" accept="image/*,.heic,.heif" capture="environment" data-act="retake">다시 찍기</label>
+      <label class="btn sm primary" data-more><input type="file" accept="image/*,.heic,.heif" capture="environment" data-act="more">같은 자세로 한 번 더 찍기 <span data-shotn></span></label>
       <button class="btn sm" data-act="ai">AI 다시 인식</button>
       <button class="btn sm" data-act="reset">점 초기 위치로</button>
       <span class="spacer"></span>
@@ -1314,8 +1367,16 @@ function mountEditor(k){
     </div>`;
   box.querySelector('[data-act=retake]').onchange = e => { const f = e.target.files && e.target.files[0]; e.target.value = ''; if (f) loadImageFile(k, f); };
   box.querySelector('[data-act=ai]').onclick = () => runAI(k);
+  const moreIn = box.querySelector('[data-act=more]');
+  moreIn.addEventListener('click', e => {
+    const left = untouchedPoints().filter(t => t.startsWith(k === 'front' ? '정면' : '측면'));
+    if (left.length){ e.preventDefault(); toast('먼저 이 사진의 점을 맞춰 주세요: ' + left.join(', ')); }
+  });
+  moreIn.onchange = e => { const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f) return;
+    A.hist[k].push(computeMetrics(k === 'front' ? A[k] : null, k === 'side' ? A[k] : null));
+    loadImageFile(k, f); };
   box.querySelector('[data-act=reset]').onclick = () => { A[k].points = clone(DEFAULT_POINTS[k]); A[k].method='manual'; A[k].touched = {}; drawEditor(k); updateResult(); };
-  box.querySelector('[data-act=clear]').onclick = () => { A[k] = null; renderRespondent(); };
+  box.querySelector('[data-act=clear]').onclick = () => { A[k] = null; A.hist[k] = []; renderRespondent(); };
   const cv = $('#cv-'+k);
   let drag = null, off = {x:0,y:0};
   const pos = e => { const r = cv.getBoundingClientRect(); return { x:(e.clientX-r.left)/r.width, y:(e.clientY-r.top)/r.height, rw:r.width, rh:r.height }; };
@@ -1365,6 +1426,7 @@ function drawEditor(k, active){
     g.save(); g.strokeStyle='#fff'; g.lineWidth=1.5; const ang = Math.atan2(e.y-c.y, e.x-c.x); g.beginPath();
     if (dir>0) g.arc(c.x,c.y,30,ang,0); else g.arc(c.x,c.y,30,Math.PI,ang); g.stroke(); g.restore();
     label(`목 각도 ${fmt(m.cva)}°`, c.x + (dir>0 ? 36 : -130), c.y + 18);
+    if (slot.points.c7){ line(c, s, cssVar('--sh'), 2.5); label(`어깨각 ${fmt(m.sa)}°`, s.x + (dir>0 ? 14 : -120), s.y + 24); }
   }
   for (const key in slot.points){
     if (!POINT_INFO[key]) continue;
@@ -1386,7 +1448,10 @@ function drawEditor(k, active){
     g.beginPath(); g.arc(cx,cy,R0,0,Math.PI*2); g.strokeStyle='#fff'; g.lineWidth=3; g.stroke();
     label(POINT_INFO[active].label, cx - R0, cy - R0 - 14);
   }
-  const bd = $('#badge-'+k); if (bd) bd.innerHTML = slot.method==='manual' ? '<span class="pill gray">직접 지정</span>' : `<span class="pill brand">AI 인식${slot.edited?' 후 수정':''}</span>`;
+  const nShot = (A.hist[k]||[]).length + 1;
+  const bd = $('#badge-'+k); if (bd) bd.innerHTML = `<span class="pill gray">${nShot}회째 촬영</span> ` + (slot.method==='manual' ? '<span class="pill gray">직접 지정</span>' : `<span class="pill brand">AI 인식${slot.edited?' 후 수정':''}</span>`);
+  const sn = $('#ed-'+k+' [data-shotn]'); if (sn) sn.textContent = `(${Math.min(nShot+1,3)}/3)`;
+  const mb = $('#ed-'+k+' [data-more]'); if (mb) mb.style.display = nShot >= 3 ? 'none' : '';
 }
 
 
@@ -1481,7 +1546,7 @@ function updateNav(){
 /* ---- 응답 결과 ---- */
 const charts = {};
 let resMetric = 'score', scatterX = '', scatterY = 'pre';
-const METRICS = { score:{l:'자세 점수',u:'점',better:'up'}, cva:{l:'목 각도(CVA)',u:'°',better:'up'}, shoulderTilt:{l:'어깨 높이 차이',u:'°',better:'down'}, pelvisTilt:{l:'골반 높이 차이',u:'°',better:'down'}, headTilt:{l:'머리 기울기',u:'°',better:'down'} };
+const METRICS = { score:{l:'자세 점수',u:'점',better:'up'}, cva:{l:'목 각도(CVA)',u:'°',better:'up'}, sa:{l:'어깨각(SA)',u:'°',better:'up'}, shoulderTilt:{l:'어깨 높이 차이',u:'°',better:'down'}, pelvisTilt:{l:'골반 높이 차이',u:'°',better:'down'}, headTilt:{l:'머리 기울기',u:'°',better:'down'} };
 const DERIVED = { habit:{ group:'습관', label:'자세 습관 점수 (1~5, 높을수록 나쁜 습관)' }, discomfort:{ group:'불편감', label:'신체 불편감 점수 (1~5, 높을수록 불편)' } };
 function groupScore(rec, group){
   const vals = [];
@@ -1525,9 +1590,9 @@ function adminDash(){
       <select id="resMetric" style="width:auto" aria-label="비교 지표">${Object.entries(METRICS).map(([k,v])=>`<option value="${k}" ${k===resMetric?'selected':''}>${v.l}</option>`).join('')}</select></div>
     ${rows.some(x=>x.preV!=null||x.postV!=null) ? `<div style="margin-bottom:6px"><span class="key"><i style="background:var(--pre)"></i>처음</span><span class="key"><i style="background:var(--post)"></i>스트레칭 후</span><span class="small muted">${mt.better==='up'?'높을수록 좋음':'낮을수록 균형'}</span></div><div class="chart-box"><canvas id="chBar" role="img" aria-label="참여자별 비교 막대그래프"></canvas></div>`
       : `<div class="empty">아직 측정 결과가 없어요. 참여 화면에서 첫 응답을 받아 보세요.</div>`}
-    <div class="tbl-wrap" style="margin-top:14px"><table class="t"><thead><tr><th style="width:34px"><input type="checkbox" id="selAll" aria-label="모두 선택" class="cb"></th><th>참여자</th><th>참여일</th><th class="num">처음</th><th class="num">스트레칭 후</th><th class="num">변화</th><th>등급</th><th>설문</th></tr></thead>
+    <div class="tbl-wrap" style="margin-top:14px"><table class="t"><thead><tr><th style="width:34px"><input type="checkbox" id="selAll" aria-label="모두 선택" class="cb"></th><th>참여자</th><th>참여일</th><th class="num">처음</th><th class="num">스트레칭 후</th><th class="num">변화</th><th>등급</th><th>받은 해결책</th><th>설문</th></tr></thead>
       <tbody>${rows.length ? rows.map(x => { const d = (x.preV!=null&&x.postV!=null) ? x.postV-x.preV : null; const evp = x.post ? evaluate(x.post.metrics||{}) : (x.pre ? evaluate(x.pre.metrics||{}) : null);
-        return `<tr class="click" data-rec="${esc(x.r.id)}" tabindex="0"><td><input type="checkbox" class="cb sel" value="${esc(x.r.id)}" aria-label="${esc(x.r.name)} 선택"></td><td><b>${esc(x.r.name)}</b></td><td class="small muted">${x.r.createdAt?fmtDate(x.r.createdAt):'–'}</td><td class="num">${fmt(x.preV,dp)}</td><td class="num">${fmt(x.postV,dp)}</td><td class="num ${dc(d,mt.better)}">${d==null?'–':(d>0?'+':'')+fmt(d,dp)}</td><td>${evp?`<span class="pill ${evp.grade.c}">${evp.grade.t}</span>`:'<span class="muted">–</span>'}</td><td>${Object.keys(x.r.surveys||{}).length?'<span class="pill good">완료</span>':'<span class="pill gray">미응답</span>'}</td></tr>`; }).join('') : `<tr><td colspan="8" class="muted">참여자가 아직 없어요.</td></tr>`}</tbody></table></div>
+        return `<tr class="click" data-rec="${esc(x.r.id)}" tabindex="0"><td><input type="checkbox" class="cb sel" value="${esc(x.r.id)}" aria-label="${esc(x.r.name)} 선택"></td><td><b>${esc(x.r.name)}</b></td><td class="small muted">${x.r.createdAt?fmtDate(x.r.createdAt):'–'}</td><td class="num">${fmt(x.preV,dp)}</td><td class="num">${fmt(x.postV,dp)}</td><td class="num ${dc(d,mt.better)}">${d==null?'–':(d>0?'+':'')+fmt(d,dp)}</td><td>${evp?`<span class="pill ${evp.grade.c}">${evp.grade.t}</span>`:'<span class="muted">–</span>'}</td><td class="small">${solutionNames(x.post || x.pre).join(', ') || '<span class="muted">–</span>'}</td><td>${Object.keys(x.r.surveys||{}).length?'<span class="pill good">완료</span>':'<span class="pill gray">미응답</span>'}</td></tr>`; }).join('') : `<tr><td colspan="9" class="muted">참여자가 아직 없어요.</td></tr>`}</tbody></table></div>
     <div class="row" style="margin-top:12px"><button class="btn sm danger" id="delSel" disabled>선택한 응답 지우기</button><span class="small muted">행을 누르면 참여자별 기록을 볼 수 있어요.</span><span class="spacer"></span><button class="btn sm" id="copyCsv">CSV 복사</button></div>
   </div>
   <div class="panel">
@@ -1572,17 +1637,22 @@ function adminDash(){
       note.innerHTML = `${pts.length}명, 상관계수 r = <b>${r.toFixed(2)}</b> (${s}). <span class="muted">참여자 수가 적으면 우연일 수 있으니 경향으로만 해석하세요.</span>`; }
   }
 }
+function solutionNames(meas){
+  if (!meas) return [];
+  const keys = meas.solutions || (evaluate(meas.metrics||{}) || {}).exercises || [];
+  return keys.map(k => EXERCISES[k] ? EXERCISES[k].name : k);
+}
 function buildCsv(){
   const qs = []; sortedSurveys().forEach(s => (s.questions||[]).forEach(q => qs.push({ s, q })));
-  const head = ['참여자','참여일','측정시점','측정일시','자세점수','머리기울기(°)','어깨높이차(°)','골반높이차(°)','목각도CVA(°)', ...qs.map(x=>`${x.s.title}:${x.q.text}`)];
+  const head = ['참여자','참여일','측정시점','측정일시','자세점수','목각도CVA(°)','어깨각SA(°)','머리기울기(°)','어깨높이차(°)','골반높이차(°)','몸통기울기(°)','촬영횟수(정면/측면)','다시촬영필요','관찰항목','받은해결책', ...qs.map(x=>`${x.s.title}:${x.q.text}`)];
   const cell = v => { const s = String(v ?? ''); return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s; };
   const lines = [head.map(cell).join(',')];
   sortedRecords().forEach(r => {
     const ans = qs.map(x => { const a=(r.surveys||{})[x.s.id]; return a&&a.answers ? a.answers[x.q.id] : ''; });
     const joined = r.createdAt ? new Date(r.createdAt).toLocaleDateString('ko-KR') : '';
     const ms = [...(r.measures||[])].sort((a,b)=>a.at-b.at);
-    if (!ms.length) lines.push([r.name,joined,'','','','','','','',...ans].map(cell).join(','));
-    ms.forEach(m => { const mm = m.metrics||{}; lines.push([r.name, joined, m.phase==='post'?'스트레칭 후':'처음', new Date(m.at).toLocaleString('ko-KR'), scoreOf(m), fmt(mm.headTilt), fmt(mm.shoulderTilt), fmt(mm.pelvisTilt), fmt(mm.cva), ...ans].map(cell).join(',')); });
+    if (!ms.length) lines.push([r.name,joined,'','','','','','','','','','','','','',...ans].map(cell).join(','));
+    ms.forEach(m => { const mm = m.metrics||{}, ev = evaluate(mm) || {}, n = m.shots || mm.n || {}; lines.push([r.name, joined, m.phase==='post'?'스트레칭 후':'처음', new Date(m.at).toLocaleString('ko-KR'), scoreOf(m), fmt(mm.cva), fmt(mm.sa), fmt(mm.headTilt), fmt(mm.shoulderTilt), fmt(mm.pelvisTilt), fmt(mm.trunkTilt), `${n.front||0}/${n.side||0}`, ev.retake ? '예' : '', (ev.tags||[]).join(' / '), solutionNames(m).join(' / '), ...ans].map(cell).join(',')); });
   });
   return lines.join('\n');
 }
@@ -1592,8 +1662,9 @@ function showDetail(id){
   const svs = sortedSurveys().filter(s => (r.surveys||{})[s.id]);
   openModal(`<div class="row"><h3 style="margin:0">${esc(r.name)}</h3><span class="spacer"></span><button class="btn sm ghost" id="mClose">닫기</button></div>
     <h4 style="margin:18px 0 8px;font-size:15px">측정 기록</h4>
-    ${ms.length ? `<div class="tbl-wrap"><table class="t"><thead><tr><th>시점</th><th>일시</th><th class="num">점수</th><th class="num">머리</th><th class="num">어깨</th><th class="num">골반</th><th class="num">목 각도</th><th></th></tr></thead><tbody>
-      ${ms.map(m=>{const mm=m.metrics||{};return `<tr><td>${m.phase==='post'?'스트레칭 후':'처음'}</td><td class="small">${fmtDate(m.at)}</td><td class="num"><b>${scoreOf(m)??'–'}</b></td><td class="num">${fmt(mm.headTilt)}°</td><td class="num">${fmt(mm.shoulderTilt)}°</td><td class="num">${fmt(mm.pelvisTilt)}°</td><td class="num">${fmt(mm.cva)}°</td><td><button class="btn sm ghost" data-del="${esc(m.id)}" aria-label="이 측정 삭제">삭제</button></td></tr>`}).join('')}
+    ${ms.length ? `<div class="tbl-wrap"><table class="t"><thead><tr><th>시점</th><th>일시</th><th class="num">점수</th><th class="num">목 각도</th><th class="num">어깨각</th><th class="num">머리</th><th class="num">어깨 높이</th><th class="num">골반</th><th></th></tr></thead><tbody>
+      ${ms.map(m=>{const mm=m.metrics||{}, ev=evaluate(mm)||{}, n=m.shots||mm.n||{};return `<tr><td>${m.phase==='post'?'스트레칭 후':'처음'}</td><td class="small">${fmtDate(m.at)}</td><td class="num"><b>${scoreOf(m)??'–'}</b></td><td class="num">${fmt(mm.cva)}°</td><td class="num">${fmt(mm.sa)}°</td><td class="num">${fmt(mm.headTilt)}°</td><td class="num">${fmt(mm.shoulderTilt)}°</td><td class="num">${fmt(mm.pelvisTilt)}°</td><td><button class="btn sm ghost" data-del="${esc(m.id)}" aria-label="이 측정 삭제">삭제</button></td></tr>
+        <tr><td colspan="9" class="small" style="background:var(--sunk)">촬영 정면 ${n.front||0}회·측면 ${n.side||0}회${ev.retake?' · <b style="color:var(--bad)">다시 촬영 필요</b>':''}<br>관찰: ${(ev.tags||[]).length ? ev.tags.map(esc).join(', ') : '특별히 살펴볼 항목 없음'}<br>받은 해결책: ${solutionNames(m).map(esc).join(', ') || '–'}</td></tr>`}).join('')}
     </tbody></table></div><p class="small muted">같은 시점에 여러 번 측정했다면 가장 최근 기록으로 비교해요.</p>` : '<div class="empty">측정 기록이 없어요.</div>'}
     <h4 style="margin:18px 0 8px;font-size:15px">설문 응답</h4>
     ${svs.length ? svs.map(s => { const a = r.surveys[s.id]; return `<div style="margin-bottom:12px"><b class="small">${esc(s.title)}</b> <span class="small muted">${fmtDate(a.at)}</span><table class="t" style="margin-top:4px">${(s.questions||[]).map(q=>`<tr><td class="muted small" style="width:55%">${esc(q.text)}</td><td>${esc(a.answers?.[q.id] ?? '–')} ${a.answers?.[q.id]!=null&&q.unit?esc(q.unit):''}</td></tr>`).join('')}</table></div>`; }).join('') : '<div class="empty">설문 응답이 없어요.</div>'}
@@ -1734,46 +1805,39 @@ function qEditHtml(q, i, n){
 /* ---- 판정 기준 ---- */
 function adminCriteria(){
   const s = Store.settingsFull;
-  const rowH = (lab, desc, keys) => `<div class="lab"><b>${lab}</b><div class="small muted">${desc}</div></div>` + keys.map(k=>`<input type="number" step="0.1" data-k="${k}" value="${s[k]}" aria-label="${lab}">`).join('');
+  const f = (k, label, step='0.1') => `<div><label class="f">${label}</label><input type="number" step="${step}" data-k="${k}" value="${s[k]}"></div>`;
   $('#adminBody').innerHTML = `<div class="panel">
-    <h3>자세 점수 계산 방식</h3>
-    <p class="sub">100점에서 항목별 감점을 빼요. 감점은 (허용 범위를 넘은 각도) × (1°당 감점)이고, 최대 감점을 넘지 않아요. 팀에서 기준을 토의해 정해 보세요.</p>
-    <div class="set-grid">
-      <div class="h">항목</div><div class="h">허용 범위(°)</div><div class="h">1°당 감점</div><div class="h">최대 감점</div>
-      ${rowH('목 각도 (CVA)','이 각도보다 작으면 거북목 자세 경향',['cvaThreshold','cvaWeight','cvaMax'])}
-      ${rowH('머리 기울기','양쪽 귀를 이은 선의 기울기',['headTol','headWeight','headMax'])}
-      ${rowH('어깨 높이 차이','양쪽 어깨를 이은 선의 기울기',['shoulderTol','shoulderWeight','shoulderMax'])}
-      ${rowH('골반 높이 차이','양쪽 골반을 이은 선의 기울기',['pelvisTol','pelvisWeight','pelvisMax'])}
-    </div>
-    <h3 style="margin-top:24px">등급</h3>
-    <div class="grid g3">
-      <div><label class="f">양호 (이 점수 이상)</label><input type="number" data-k="gradeGood" value="${s.gradeGood}"></div>
-      <div><label class="f">주의 (이 점수 이상)</label><input type="number" data-k="gradeCaution" value="${s.gradeCaution}"></div>
-      <div><label class="f">개선 필요</label><input type="text" disabled value="주의 점수 미만"></div>
-    </div>
-    <h3 style="margin-top:24px">정도 구분</h3>
-    <div class="grid g3">
-      <div><label class="f">뚜렷한 거북목: 목 각도가 이 값 미만</label><input type="number" step="0.1" data-k="cvaSevere" value="${s.cvaSevere}"></div>
-      <div style="grid-column:span 2"><p class="small muted" style="margin:28px 0 0">좌우 기울기는 허용 범위의 2배를 넘으면 ‘뚜렷함’, 그 사이는 ‘약간’으로 표시해요.</p></div>
-    </div>
+    <h3>측면: 목 각도 (CVA)</h3>
+    <p class="sub">C7을 지나는 수평선과 C7–귀 구슬(이주) 선 사이의 각이에요.</p>
+    <div class="grid g3">${f('cvaGood','양호: 이 값 이상 (°)')}${f('cvaAlert','재측정 알림: 이 값 미만 (°)')}<div><label class="f">주의</label><input type="text" disabled value="${s.cvaAlert}° ~ ${fmt(s.cvaGood-0.1)}°"></div></div>
+    <h3 style="margin-top:22px">측면: 어깨각 (SA)</h3>
+    <p class="sub">C7을 지나는 수평선과 C7–견봉 선 사이의 각이에요.</p>
+    <div class="grid g3">${f('saGood','양호: 이 값 초과 (°)')}${f('saAlert','선별 양성: 이 값 미만 (°)')}<div><label class="f">주의</label><input type="text" disabled value="${s.saAlert}° ~ ${s.saGood}°"></div></div>
+    <h3 style="margin-top:22px">정면: 머리·어깨·골반 좌우 기울기</h3>
+    <p class="sub">양쪽 귀(이주), 양쪽 견봉, 양쪽 골반을 이은 선이 수평선과 이루는 각이에요. 몸통 중심선 기울기는 참고값으로만 보여 줘요.</p>
+    <div class="grid g3">${f('tiltGood','양호: 이 값 이하 (°)')}${f('tiltRetake','재측정: 이 값 이하 (°)')}<div><label class="f">선별 양성</label><input type="text" disabled value="${s.tiltRetake}° 초과가 2회 이상 반복"></div></div>
+    <h3 style="margin-top:22px">반복 측정과 점수</h3>
+    <div class="grid g3">${f('retakeSpread','다시 촬영: 촬영 간 차이 이 값 이상 (°)')}${f('penWarn','주의·재측정 항목 감점','1')}${f('penPos','선별 양성·알림 항목 감점','1')}${f('gradeGood','‘양호’ 등급: 이 점수 이상','1')}${f('gradeCaution','‘주의’ 등급: 이 점수 이상','1')}</div>
     <div class="row" style="margin-top:20px"><button class="btn" id="resetCrit">기본값 채우기</button><span class="spacer"></span><button class="btn primary" id="saveCrit">기준 저장</button></div>
-  </div>`;
-  $('#adminBody').insertAdjacentHTML('beforeend', `<div class="panel">
-    <h3>기본값의 근거</h3>
+  </div>
+  <div class="panel">
+    <h3>기준의 근거와 주의할 점</h3>
     <ul class="small" style="margin:0;padding-left:18px;color:var(--ink-2);display:grid;gap:8px">
-      <li><b>목 각도(CVA) 53° 이상 = 정상 범위.</b> 귀 구슬과 제7경추를 이은 선이 C7을 지나는 수평선과 이루는 각이에요. 연구에 따라 ‘정상’을 53° 초과 또는 55° 이상으로 보고, 거북목 기준을 48~50° 미만으로 둡니다(Titcomb 등 2024 정리; Yip 등 2008; Ruivo 등 2014).</li>
-      <li><b>48~53° = 약간, 48° 미만 = 뚜렷한 거북목.</b> 정상과 거북목 사이의 경계 구간을 ‘약간’으로 따로 표시해, 작은 변화도 놓치지 않도록 했어요.</li>
-      <li><b>좌우 기울기: 머리 2°, 어깨 1.5°, 골반 2°까지 정상.</b> 그 2배를 넘으면 ‘뚜렷함’이에요. 사진 측정에는 촬영 자세에 따른 오차가 있으므로, 같은 위치·거리에서 찍어 전후를 비교하는 것이 중요해요.</li>
-      <li><b>기준점.</b> 목 각도는 연구와 같은 방식으로 귀 구슬(tragus)과 목 뒤 7번 목뼈(C7)를 잇는 선과 C7을 지나는 수평선 사이의 각으로 계산해요. AI는 C7을 직접 찾지 못해 어깨 위치에서 추정하므로, 측면 사진에서 초록 점을 실제 C7에 맞추면 연구 값과 가장 가까워져요. 정면은 양쪽 귀, 어깨 끝(견봉), 골반을 이은 선이 수평선과 이루는 각이에요.</li>
-      <li><b>측정 정확도를 높이는 방법.</b> AI는 원본과 좌우 반전한 사진을 각각 분석해 평균을 내요. 정면 사진에서 발목 선이 3° 넘게 기울면 휴대폰이 기울어진 것으로 보고 다시 찍기를 권해요.</li>
+      <li><b>청소년 평균 목 각도 47.4°±5.2°</b> — 포르투갈 중등학교 15~17세 275명의 선 자세 옆모습 사진 분석 결과예요. ±5.2°는 표준편차이며 정상 범위나 측정 오차가 아니에요. 한 집단의 평균이므로 판정 기준으로 쓰지 않고 참고 자료로만 보여 줘요. (Ruivo 등, Brazilian Journal of Physical Therapy, 2014)</li>
+      <li><b>목 각도 50° 미만</b> — 일부 자세 연구에서 전방 머리 자세의 분류 기준으로 쓴 값이에요. 50° 미만이라고 질병이나 손상이 확정되는 것은 아니에요.</li>
+      <li><b>목 각도 46° 미만</b> — 인용한 논문들에서 별도의 위험 경계값으로 쓸 근거는 확인되지 않았어요. 46° 미만은 본 서비스의 내부 재측정 알림값이며, 임상적으로 검증된 위험 기준이 아닙니다.</li>
+      <li><b>어깨각 52° 초과 양호</b> — 일부 연구에서 양호 기준으로 쓴 사례가 있어요. (Journal of Bodywork and Movement Therapies, 2025; BMC Musculoskeletal Disorders, 2018)</li>
+      <li><b>사진 측정의 한계</b> — 카메라 수평, 촬영 거리·높이, 조명, 몸과 카메라의 방향, 해상도에 따라 값이 달라져요. 같은 조건에서 3회 찍어 중앙값을 쓰고, 차이가 ${s.retakeSpread}° 이상이면 다시 찍도록 안내해요. (Scientific Reports, 2025)</li>
+      <li><b>개인 기준선</b> — 키·성별·나이·체형에 따라 차이가 커서 모두에게 같은 ‘정상 자세’를 강요하지 않고, 처음 측정값과 변화량을 함께 보여 줘요.</li>
+      <li><b>안전한 해결책</b> — 턱을 세게 당기거나 어깨를 계속 젖히는 강제 교정 대신, 30~45분마다 자세를 바꾸고 걷거나 움직이도록 안내해요. 결과 문구도 ‘거북목 확정’ 같은 진단 표현을 쓰지 않아요.</li>
     </ul>
-    <p class="small muted" style="margin:12px 0 0">이 기준은 학생 연구용 선별 지표이며 진단 기준이 아니에요.</p>
-  </div>`);
+  </div>`;
   $('#adminBody').addEventListener('input', () => adminEditing = true, { once:true });
   $('#saveCrit').onclick = async () => {
     const o = { ...Store.settingsFull }; $$('#adminBody [data-k]').forEach(i => o[i.dataset.k] = num(i.value, DEFAULT_SETTINGS[i.dataset.k]));
-    if (o.gradeCaution > o.gradeGood){ toast('주의 점수는 양호 점수보다 낮아야 해요.'); return; }
-    try { await Store.saveSettings(o); adminEditing=false; toast('기준을 저장했어요. 모든 결과 점수에 바로 반영돼요.'); } catch(e){}
+    if (o.cvaAlert >= o.cvaGood || o.saAlert > o.saGood || o.tiltGood >= o.tiltRetake){ toast('경계값 순서를 확인해 주세요. (알림값 < 양호값)'); return; }
+    if (o.gradeCaution > o.gradeGood){ toast('‘주의’ 점수는 ‘양호’ 점수보다 낮아야 해요.'); return; }
+    try { await Store.saveSettings(o); adminEditing=false; toast('기준을 저장했어요. 모든 결과에 바로 반영돼요.'); adminCriteria(); } catch(e){}
   };
   $('#resetCrit').onclick = () => { $$('#adminBody [data-k]').forEach(i => i.value = DEFAULT_SETTINGS[i.dataset.k]); adminEditing = true; toast('기본값을 채웠어요. 기준 저장을 눌러야 적용돼요.'); };
 }
