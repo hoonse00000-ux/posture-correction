@@ -533,7 +533,7 @@ async function bootFirebase(cfg){
   Store.mode = 'firebase'; Store.db = makeFbAdapter(fsM, fdb); Store.fb = { auth, au:auM, projectId: cfg.projectId };
   // 첫 인증 상태: 로그인 안 되어 있으면 익명으로 로그인 (참여자)
   await withTimeout(new Promise(res => {
-    const off = auM.onAuthStateChanged(auth, async u => { off(); if (!u){ try { await auM.signInAnonymously(auth); } catch(e){ Store.fbError = '익명 로그인이 꺼져 있어요. Firebase 콘솔 > Authentication에서 ‘익명’을 사용 설정하세요.'; } } res(); });
+    const off = auM.onAuthStateChanged(auth, async u => { off(); if (!u){ try { await auM.signInAnonymously(auth); } catch(e){ Store.fbAuthErr = e.code || e.message; Store.fbError = '익명 로그인이 꺼져 있어요. Firebase 콘솔 > Authentication에서 ‘익명’을 사용 설정하세요.'; } } res(); });
   }), 15000);
   auM.onAuthStateChanged(auth, u => {
     Store.fbUid = u ? u.uid : null;
@@ -728,7 +728,19 @@ function stepperHtml(){
   const idx = R.step === 'done' ? order.length : order.indexOf(R.step);
   return `<div class="stepper" aria-label="진행 단계"><ol>${steps.map(([k,l],i)=>`<li class="${i<idx?'done':i===idx?'now':''}" ${i===idx?'aria-current="step"':''}>${i+1}. ${l}</li>`).join('')}</ol></div>`;
 }
+// Firebase: 로그인이 풀려 있으면 저장 직전에 익명 로그인을 다시 시도
+async function ensureFbUser(){
+  if (Store.mode !== 'firebase') return true;
+  const auth = Store.fb.auth;
+  if (auth.currentUser){ Store.fbUid = auth.currentUser.uid; return true; }
+  try { const r = await Store.fb.au.signInAnonymously(auth); Store.fbUid = r.user.uid; Store.fbAuthErr = ''; return true; }
+  catch(e){ Store.fbAuthErr = e.code || e.message || 'unknown'; return false; }
+}
 async function saveRec(){
+  if (Store.mode === 'firebase' && !(await ensureFbUser())){
+    toast(/admin-restricted|operation-not-allowed/.test(Store.fbAuthErr) ? 'Firebase에서 익명 로그인이 꺼져 있어요.' : '서버 로그인에 실패했어요 (' + Store.fbAuthErr + ')');
+    return false;
+  }
   if (Store.mode === 'firebase' && R.rec) R.rec.uid = Store.fbUid || R.rec.uid || null;   // 현재 로그인한 기기 계정으로 맞춤
   try { await Store.saveRecord(clone(R.rec)); return true; } catch(e){ return false; }
 }
@@ -794,7 +806,7 @@ function stepWelcome(){
       R.rec = prev ? { ...clone(prev), name, consent:true } : { id, name, consent:true, createdAt: Date.now(), surveys:{}, measures:[] };
       R.phase = 'pre'; R.lastMeasure = null; A.front = null; A.side = null; R.answers = {};
       if (!(await saveRec())){
-        if (Store.mode === 'firebase'){ btn.disabled = false; btn.textContent = '설문 시작하기'; say(Store.fbUid ? '서버에 저장하지 못했어요. 연구자에게 Firestore 보안 규칙을 확인해 달라고 알려 주세요.' : '서버에 접속하지 못했어요. 연구자에게 Firebase의 익명 로그인 설정을 확인해 달라고 알려 주세요.'); return; }
+        if (Store.mode === 'firebase'){ btn.disabled = false; btn.textContent = '설문 시작하기'; say(Store.fbUid ? '서버에 저장하지 못했어요. 연구자에게 Firestore 보안 규칙을 확인해 달라고 알려 주세요.' : (/admin-restricted|operation-not-allowed/.test(Store.fbAuthErr||'') ? 'Firebase에서 익명 로그인이 꺼져 있어요. 연구자에게 Authentication > 로그인 방법 > 익명을 켜 달라고 알려 주세요.' : '서버에 접속하지 못했어요 (' + (Store.fbAuthErr || '로그인 안 됨') + '). 페이지를 새로 고친 뒤 다시 해 주세요.')); return; }
         if (Store.mode === 'cloud'){ btn.disabled = false; btn.textContent = '설문 시작하기'; say('응답을 저장할 권한이 없어요. 연구 담당자에게 이 페이지의 참여 권한을 요청하세요.'); return; }
       }
       go(activeSurveys().length ? 'survey' : 'photo');
