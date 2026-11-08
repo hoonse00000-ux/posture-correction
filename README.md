@@ -30,7 +30,7 @@
 
 ## 연구자 계정
 
-hoonse00000@gmail.com, sw.almond06@gmail.com, gigayu7@gmail.com, kangminkim121106@gmail.com, binn121015@gmail.com
+hoonse00000@gmail.com, sw.almond06@gmail.com, gigayu7@gmail.com, kangminkim121106@gmail.com, binn121015@gmail.com, gksgud4005@gmail.com
 
 연구자를 바꾸려면 `index.html`의 `ADMIN_EMAILS`와 `firestore.rules`의 이메일 목록을 함께 고칩니다.
 - 웹 앱 설정은 `index.html` 안의 `FIREBASE_CONFIG`에 들어 있습니다.

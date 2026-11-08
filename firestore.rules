@@ -11,7 +11,8 @@ service cloud.firestore {
           'sw.almond06@gmail.com',
           'gigayu7@gmail.com',
           'kangminkim121106@gmail.com',
-          'binn121015@gmail.com'
+          'binn121015@gmail.com',
+          'gksgud4005@gmail.com'
         ];
     }
     function signedIn() { return request.auth != null; }
