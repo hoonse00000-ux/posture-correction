@@ -2,7 +2,8 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ▼ 연구자(관리자) 이메일을 여기에 적으세요. 여러 명이면 쉼표로 구분합니다.
+    // ▼ 연구자(관리자) 이메일을 소문자로 적으세요. 여러 명이면 쉼표로 구분합니다.
+    //   예) ['teacher@gmail.com', 'friend@gmail.com']
     function isAdmin() {
       return request.auth != null
         && request.auth.token.email in ['teacher@example.com'];
@@ -19,16 +20,15 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // 참여자 응답: 참여자는 자기 응답만 만들고 고칠 수 있고, 전체 보기·삭제는 연구자만
+    // 참여자 응답
+    // - 웹앱에 접속한 사람(익명 로그인 포함)은 응답을 만들고 이어서 저장할 수 있어요.
+    // - 응답 목록을 보거나 지우는 것은 연구자만 할 수 있어요.
+    // - 응답 문서 주소는 무작위라서 다른 사람의 응답을 찾아 고칠 수 없어요.
     match /records/{id} {
-      allow create: if isAdmin()
-        || (signedIn() && request.resource.data.uid == request.auth.uid);
-      allow read: if isAdmin()
-        || (signedIn() && resource.data.uid == request.auth.uid);
-      allow update: if isAdmin()
-        || (signedIn() && resource.data.uid == request.auth.uid
-                       && request.resource.data.uid == request.auth.uid);
-      allow delete: if isAdmin();
+      allow create, update: if signedIn()
+        && request.resource.data.name is string
+        && request.resource.data.name.size() <= 60;
+      allow read, delete: if isAdmin();
     }
   }
 }

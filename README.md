@@ -26,7 +26,7 @@
 
 - Authentication: **익명**, **이메일/비밀번호** 로그인 사용 설정
 - Authentication > 설정 > 승인된 도메인: `hoonse00000-ux.github.io` 추가
-- Firestore 규칙: `firestore.rules`의 `teacher@example.com`을 연구자 이메일로 바꿔 게시
+- Firestore 규칙: `firestore.rules`의 `teacher@example.com`을 연구자 이메일(소문자)로 바꿔 게시
 - 웹 앱 설정은 `index.html` 안의 `FIREBASE_CONFIG`에 들어 있습니다.
 
 ## 수정해서 다시 올리기
