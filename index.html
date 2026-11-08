@@ -519,7 +519,7 @@ function subscribeRecords(on){
       Store.records = snap.docs.map(d => ({...d.data(), id:d.id})); Store.fbDenied = false; onDataChange();
     }, err => {
       recordsUnsub = null; Store.records = [];
-      if (err && err.code === 'permission-denied'){ Store.fbDenied = true; toast('이 계정은 연구자로 등록되어 있지 않아요. 보안 규칙의 연구자 이메일을 확인하세요.'); }
+      if (err && err.code === 'permission-denied'){ Store.fbDenied = true; toast('Firebase 보안 규칙이 응답 보기를 막고 있어요.'); }
       if (current === 'admin') renderAdmin();
     });
   }
@@ -1390,8 +1390,9 @@ function renderAdmin(){
     const kakao = /KAKAOTALK/i.test(navigator.userAgent);
     el.innerHTML = `<div class="flow" style="max-width:440px"><div class="ahead"><div><h1>연구자 로그인</h1><p>연구자로 등록된 Google 계정으로 로그인하세요.</p></div></div>
       <div class="panel">
-        ${Store.fbEmail && !Store.admin ? `<p class="notice" style="margin:0 0 14px"><b>${esc(Store.fbEmail)}</b>은 연구자로 등록되지 않은 계정이에요. 등록된 계정으로 다시 로그인해 주세요.</p>` : ''}
-        ${Store.fbDenied ? '<p class="notice" style="margin:0 0 14px">서버가 이 계정의 연구자 권한을 거부했어요. Firestore 보안 규칙의 연구자 이메일 목록을 확인해 주세요.</p>' : ''}
+        ${Store.fbEmail && !Store.isAdmin ? `<p class="notice" style="margin:0 0 14px"><b>${esc(Store.fbEmail)}</b>은 연구자로 등록되지 않은 계정이에요. 등록된 계정으로 다시 로그인해 주세요.</p>` : ''}
+        ${Store.fbDenied ? `<p class="notice" style="margin:0 0 14px"><b>${esc(Store.fbEmail)}</b>은 웹앱의 연구자 목록에는 있지만, Firebase 보안 규칙이 응답 보기를 막고 있어요. Firebase 콘솔 > Firestore Database > 규칙에 새 규칙을 붙여 넣고 게시한 뒤 아래 ‘다시 확인’을 눌러 주세요.</p>
+          <button class="btn block" id="fbRetry" type="button" style="margin-bottom:10px">다시 확인</button>` : ''}
         ${inApp ? `<p class="notice" style="margin:0 0 14px">${kakao ? '카카오톡' : '앱 안'} 브라우저에서는 Google 로그인이 막혀 있어요. Safari나 Chrome으로 열어 주세요.</p>
           ${kakao ? `<a class="btn block" style="margin-bottom:10px" href="kakaotalk://web/openExternal?url=${encodeURIComponent(location.href.split('#')[0] + '#admin')}">다른 브라우저로 열기</a>` : ''}` : ''}
         <button class="btn primary block" id="gLogin" type="button">
@@ -1417,6 +1418,7 @@ function renderAdmin(){
       } finally { btn.disabled = false; }
     };
     if ($('#gOut')) $('#gOut').onclick = () => logout();
+    if ($('#fbRetry')) $('#fbRetry').onclick = () => { Store.fbDenied = false; subscribeRecords(true); renderAdmin(); };
     return;
   }
   if (!Store.admin){
