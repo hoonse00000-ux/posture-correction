@@ -309,6 +309,8 @@ const FIREBASE_CONFIG = {
   appId: "1:958710035309:web:4a4994cef537e8c346e064"
 };
 const FIREBASE_SDK = 'https://www.gstatic.com/firebasejs/10.12.2/';
+/* 연구자 Google 계정 (Firestore 보안 규칙의 목록과 똑같이 맞춰 주세요) */
+const ADMIN_EMAILS = ['hoonse00000@gmail.com', 'sw.almond06@gmail.com', 'gigayu7@gmail.com', 'kangminkim121106@gmail.com', 'binn121015@gmail.com'];
 
 /* =========================================================
    기본값
@@ -536,7 +538,7 @@ async function bootFirebase(cfg){
   auM.onAuthStateChanged(auth, u => {
     Store.fbUid = u ? u.uid : null;
     Store.fbEmail = u && !u.isAnonymous ? u.email : '';
-    Store.isAdmin = !!(u && !u.isAnonymous);
+    Store.isAdmin = !!(u && !u.isAnonymous && u.email && ADMIN_EMAILS.includes(u.email.toLowerCase()));
     subscribeRecords(Store.isAdmin);
     if (Store.ready){ updateNav(); if (current === 'admin') renderAdmin(); }
   });
@@ -1372,22 +1374,37 @@ function renderAdmin(){
   }
   if (!Store.admin && Store.mode === 'firebase'){
     adminEditing = false;
-    el.innerHTML = `<div class="flow" style="max-width:420px"><div class="ahead"><div><h1>연구자 로그인</h1><p>Firebase에 등록한 연구자 계정으로 로그인하세요.</p></div></div>
-      <form class="panel" id="fbLogin">
-        ${Store.fbDenied ? '<p class="notice" style="margin:0 0 14px">이 계정은 연구자로 등록되어 있지 않아요. Firestore 보안 규칙의 연구자 이메일 목록에 이 이메일을 넣어 주세요.</p>' : ''}
-        <label class="f" for="fbEmail">이메일</label>
-        <input type="text" id="fbEmail" inputmode="email" autocomplete="username" value="${esc(Store.fbEmail||'')}">
-        <label class="f" for="fbPw" style="margin-top:12px">비밀번호</label>
-        <input type="password" id="fbPw" autocomplete="current-password">
-        <p class="q-msg" id="fbMsg" role="alert"></p>
-        <button class="btn primary block" style="margin-top:16px">로그인</button>
-      </form></div>`;
-    $('#fbLogin').onsubmit = async e => { e.preventDefault();
-      const btn = e.target.querySelector('button'), msg = $('#fbMsg'); msg.textContent = ''; btn.disabled = true;
-      try { Store.fbDenied = false; await Store.fb.au.signInWithEmailAndPassword(Store.fb.auth, $('#fbEmail').value.trim(), $('#fbPw').value); toast('로그인했어요.'); }
-      catch(err){ msg.textContent = /invalid|wrong|not-found|credential/.test(err.code||'') ? '이메일이나 비밀번호가 맞지 않아요.' : /too-many/.test(err.code||'') ? '시도가 너무 많아요. 잠시 후 다시 해 주세요.' : '로그인하지 못했어요 (' + (err.code||err.message) + ')'; }
-      finally { btn.disabled = false; } };
-    setTimeout(()=>$('#fbEmail') && $('#fbEmail').focus(), 50);
+    const inApp = /KAKAOTALK|NAVER|Instagram|FBAN|FBAV|Line\//i.test(navigator.userAgent);
+    const kakao = /KAKAOTALK/i.test(navigator.userAgent);
+    el.innerHTML = `<div class="flow" style="max-width:440px"><div class="ahead"><div><h1>연구자 로그인</h1><p>연구자로 등록된 Google 계정으로 로그인하세요.</p></div></div>
+      <div class="panel">
+        ${Store.fbEmail && !Store.admin ? `<p class="notice" style="margin:0 0 14px"><b>${esc(Store.fbEmail)}</b>은 연구자로 등록되지 않은 계정이에요. 등록된 계정으로 다시 로그인해 주세요.</p>` : ''}
+        ${Store.fbDenied ? '<p class="notice" style="margin:0 0 14px">서버가 이 계정의 연구자 권한을 거부했어요. Firestore 보안 규칙의 연구자 이메일 목록을 확인해 주세요.</p>' : ''}
+        ${inApp ? `<p class="notice" style="margin:0 0 14px">${kakao ? '카카오톡' : '앱 안'} 브라우저에서는 Google 로그인이 막혀 있어요. Safari나 Chrome으로 열어 주세요.</p>
+          ${kakao ? `<a class="btn block" style="margin-bottom:10px" href="kakaotalk://web/openExternal?url=${encodeURIComponent(location.href.split('#')[0] + '#admin')}">다른 브라우저로 열기</a>` : ''}` : ''}
+        <button class="btn primary block" id="gLogin" type="button">
+          <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#fff" d="M44.5 20H24v8.5h11.8C34.7 33.9 30.1 37 24 37c-7.2 0-13-5.8-13-13s5.8-13 13-13c3.1 0 5.9 1.1 8.1 2.9l6.4-6.4C34.6 4.1 29.6 2 24 2 11.8 2 2 11.8 2 24s9.8 22 22 22c11 0 21-8 21-22 0-1.3-.2-2.7-.5-4z"/></svg>
+          Google 계정으로 로그인</button>
+        <p class="q-msg" id="gMsg" role="alert"></p>
+        ${Store.fbEmail ? '<button class="btn ghost block" id="gOut" type="button" style="margin-top:8px">다른 계정으로 바꾸기 (로그아웃)</button>' : ''}
+      </div></div>`;
+    $('#gLogin').onclick = async () => {
+      const btn = $('#gLogin'), msg = $('#gMsg'); msg.textContent = ''; btn.disabled = true;
+      try {
+        Store.fbDenied = false;
+        const au = Store.fb.au, prov = new au.GoogleAuthProvider();
+        prov.setCustomParameters({ prompt:'select_account' });
+        await au.signInWithPopup(Store.fb.auth, prov);
+      } catch(err){
+        const c = err.code || '';
+        msg.textContent = /popup-closed|cancelled/.test(c) ? '로그인 창이 닫혔어요. 다시 눌러 주세요.'
+          : /popup-blocked/.test(c) ? '팝업이 막혔어요. 브라우저에서 팝업을 허용한 뒤 다시 눌러 주세요.'
+          : /operation-not-allowed/.test(c) ? 'Firebase에서 Google 로그인이 꺼져 있어요. Authentication > 로그인 방법에서 Google을 켜 주세요.'
+          : /unauthorized-domain/.test(c) ? '이 주소가 Firebase 승인된 도메인에 없어요. Authentication > 설정 > 승인된 도메인에 추가해 주세요.'
+          : '로그인하지 못했어요 (' + (c || err.message) + ')';
+      } finally { btn.disabled = false; }
+    };
+    if ($('#gOut')) $('#gOut').onclick = () => logout();
     return;
   }
   if (!Store.admin){
@@ -1769,7 +1786,13 @@ async function deleteRecords(ids){
 function adminSettings(){
   $('#adminBody').innerHTML = `
   <div class="grid g2" style="align-items:start">
-    <form class="panel" id="pwForm" style="margin:0">
+    ${Store.mode === 'firebase' ? `<div class="panel" style="margin:0">
+      <h3>연구자 계정</h3>
+      <p class="sub">아래 Google 계정으로 로그인하면 연구자 페이지에 들어올 수 있어요. 비밀번호는 따로 없어요.</p>
+      <ul style="margin:0;padding-left:18px;display:grid;gap:4px">${ADMIN_EMAILS.map(e => `<li>${esc(e)}${e === (Store.fbEmail||'').toLowerCase() ? ' <span class="pill brand">지금 로그인</span>' : ''}</li>`).join('')}</ul>
+      <p class="small muted" style="margin:12px 0 0">연구자를 추가하거나 빼려면 웹앱의 ADMIN_EMAILS 목록과 Firestore 보안 규칙의 이메일 목록을 함께 고쳐야 해요.</p>
+    </div>` : ''}
+    <form class="panel" id="pwForm" style="margin:0${Store.mode === 'firebase' ? ';display:none' : ''}">
       <h3>비밀번호 바꾸기</h3>
       <p class="sub">연구자 페이지에 들어올 때 쓰는 비밀번호예요.${Store.mode==='firebase'?' Firebase 연구자 계정의 비밀번호가 바뀌어요.':Store.mode==='cloud'?' 이 페이지를 쓰는 모든 기기에 함께 적용돼요.':' 이 기기에만 적용돼요.'}</p>
       <div class="grid" style="gap:12px">

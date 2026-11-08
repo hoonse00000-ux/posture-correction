@@ -16,17 +16,23 @@
 ## 사용 방법
 
 1. 참여자: 접속 주소에서 이름(별명)과 동의 → 설문 15문항 → 정면·측면 사진 촬영 → 결과와 추천 스트레칭 확인
-2. 연구자: 상단 **연구자** 메뉴에서 Firebase 연구자 계정으로 로그인
+2. 연구자: 상단 **연구자** 메뉴에서 등록된 Google 계정으로 로그인 (비밀번호 없음)
    - 응답 결과: 참여자별 점수, 처음/스트레칭 후 비교, 설문과 자세 점수의 관계 그래프, CSV 복사, 응답 삭제
    - 설문 관리: 시작 화면 문구, 설문 문항 추가·수정
    - 판정 기준: 목 각도·좌우 기울기 기준과 감점
-   - 설정: 비밀번호 변경, 로그아웃, AI 연결 확인, 외부 자세 분석 API 연결
+   - 설정: 연구자 계정 목록, 로그아웃, AI 연결 확인, 외부 자세 분석 API 연결
 
 ## Firebase 설정
 
-- Authentication: **익명**, **이메일/비밀번호** 로그인 사용 설정
+- Authentication: **익명**, **Google** 로그인 사용 설정
 - Authentication > 설정 > 승인된 도메인: `hoonse00000-ux.github.io` 추가
-- Firestore 규칙: `firestore.rules`의 `teacher@example.com`을 연구자 이메일(소문자)로 바꿔 게시
+- Firestore 규칙: `firestore.rules` 전체를 Firestore > 규칙에 붙여 넣고 게시
+
+## 연구자 계정
+
+hoonse00000@gmail.com, sw.almond06@gmail.com, gigayu7@gmail.com, kangminkim121106@gmail.com, binn121015@gmail.com
+
+연구자를 바꾸려면 `index.html`의 `ADMIN_EMAILS`와 `firestore.rules`의 이메일 목록을 함께 고칩니다.
 - 웹 앱 설정은 `index.html` 안의 `FIREBASE_CONFIG`에 들어 있습니다.
 
 ## 수정해서 다시 올리기

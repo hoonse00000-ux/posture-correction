@@ -2,11 +2,17 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ▼ 연구자(관리자) 이메일을 소문자로 적으세요. 여러 명이면 쉼표로 구분합니다.
-    //   예) ['teacher@gmail.com', 'friend@gmail.com']
+    // 연구자 Google 계정 (웹앱의 ADMIN_EMAILS 목록과 똑같이 맞춰 주세요)
     function isAdmin() {
       return request.auth != null
-        && request.auth.token.email in ['teacher@example.com'];
+        && request.auth.token.email_verified == true
+        && request.auth.token.email in [
+          'hoonse00000@gmail.com',
+          'sw.almond06@gmail.com',
+          'gigayu7@gmail.com',
+          'kangminkim121106@gmail.com',
+          'binn121015@gmail.com'
+        ];
     }
     function signedIn() { return request.auth != null; }
 
