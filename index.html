@@ -159,6 +159,7 @@ body.tighter .team{display:none}
 .opt{display:flex;align-items:center;gap:10px;padding:11px 14px;border:1px solid var(--rule-2);border-radius:10px;cursor:pointer;background:#fff}
 .opt:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
 .opt input{accent-color:var(--accent);width:17px;height:17px}
+.idrow{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,3fr);gap:10px}
 .num-in{display:flex;align-items:center;gap:10px;max-width:220px}
 .q-msg{margin:6px 0 0;font-size:13.5px;color:var(--bad);min-height:0}
 .q-msg:empty{display:none}
@@ -386,7 +387,7 @@ document.addEventListener('keydown', e => {
   if (e.key !== 'Enter' || e.isComposing) return;
   const t = e.target;
   if (!t.form || t.tagName !== 'INPUT' || ['checkbox','radio','file','button','submit'].includes(t.type)) return;
-  if (t.id === 'wName') return;               // 시작 화면은 자체 처리
+  if (t.id === 'wName' || t.id === 'wNo') return;               // 시작 화면은 자체 처리
   e.preventDefault();
   t.form.dispatchEvent(new Event('submit', { cancelable:true, bubbles:true }));
 }, true);
@@ -710,7 +711,13 @@ function pearson(xs, ys){
   let sxy=0,sxx=0,syy=0; for (let i=0;i<n;i++){ const dx=xs[i]-mx, dy=ys[i]-my; sxy+=dx*dy; sxx+=dx*dx; syy+=dy*dy; }
   if (!sxx || !syy) return null; return sxy/Math.sqrt(sxx*syy);
 }
-const sortedRecords = () => [...Store.records].sort((a,b)=> (a.createdAt||0)-(b.createdAt||0));
+const sortedRecords = () => [...Store.records].sort((a,b) => {
+  const na = a.studentNo || '', nb = b.studentNo || '';
+  if (na && nb && na !== nb) return na.length - nb.length || na.localeCompare(nb);
+  if (na !== nb) return na ? -1 : 1;
+  return (a.createdAt||0) - (b.createdAt||0);
+});
+const dispName = r => r ? (r.studentNo ? `${r.studentNo} ${r.name||''}` : (r.name || '')) : '';
 const sortedSurveys = () => [...Store.surveys].sort((a,b)=> (a.createdAt||0)-(b.createdAt||0));
 const activeSurveys = () => sortedSurveys().filter(s => s.active !== false);
 
@@ -827,9 +834,13 @@ function stepWelcome(){
   </div>
   <form class="panel" id="wForm" novalidate>
     ${blocked ? `<div class="notice">이 페이지에 로그인한 계정 정보를 확인하지 못해 응답을 저장할 수 없습니다. 연구 담당자에게 문의하세요.</div>` : `
-    <label class="f" for="wName">이름 또는 별명</label>
-    <input type="text" id="wName" maxlength="40" placeholder="예: 민지, 2학년 3반 7번" autocomplete="off">
-    <p class="small muted hint" style="margin:6px 0 0">결과를 구분하는 데만 쓰여요. 실명이 아니어도 괜찮습니다.</p>
+    <div class="idrow">
+      <div><label class="f" for="wNo">학번</label>
+        <input type="text" id="wNo" inputmode="numeric" pattern="[0-9]*" maxlength="10" placeholder="예: 20307" autocomplete="off"></div>
+      <div><label class="f" for="wName">이름</label>
+        <input type="text" id="wName" maxlength="20" placeholder="예: 김민지" autocomplete="off"></div>
+    </div>
+    <p class="small muted hint" style="margin:6px 0 0">학번은 숫자만 입력할 수 있어요. 결과를 구분하는 데만 쓰여요.</p>
     <div style="height:14px"></div>
     <label class="check"><input type="checkbox" id="wAgree"><span>${esc(st.consentText)} 자세 측정값(각도)도 함께 저장되며, 사진은 저장하지 않아요.</span></label>
     <p class="q-msg" id="wMsg" role="alert"></p>
@@ -844,16 +855,19 @@ function stepWelcome(){
   // 폼 제출(submit)을 막는 환경(미리보기 창 등)에서도 동작하도록 버튼 클릭으로 처리
   const start = async () => {
     if (btn.disabled) return;
-    const name = $('#wName').value.trim();
+    const no = $('#wNo').value.trim(), name = $('#wName').value.trim();
+    $('#wNo').classList.toggle('bad', !/^\d{1,10}$/.test(no));
     $('#wName').classList.toggle('bad', !name);
-    if (!name){ say('이름 또는 별명을 입력해 주세요.'); $('#wName').focus(); return; }
+    if (!no){ say('학번을 입력해 주세요.'); $('#wNo').focus(); return; }
+    if (!/^\d{1,10}$/.test(no)){ say('학번은 숫자만 입력할 수 있어요.'); $('#wNo').focus(); return; }
+    if (!name){ say('이름을 입력해 주세요.'); $('#wName').focus(); return; }
     if (!$('#wAgree').checked){ say('아래 참여 동의에 체크해 주세요.'); $('#wAgree').closest('.check').classList.add('bad'); $('#wAgree').focus(); return; }
     say('');
     btn.disabled = true; btn.textContent = '시작하는 중…';
     try {
       const id = isKiosk() ? uid('p') : Store.selfId;
       const prev = getRec(id);
-      R.rec = prev ? { ...clone(prev), name, consent:true } : { id, name, consent:true, createdAt: Date.now(), surveys:{}, measures:[] };
+      R.rec = prev ? { ...clone(prev), name, studentNo:no, consent:true } : { id, name, studentNo:no, consent:true, createdAt: Date.now(), surveys:{}, measures:[] };
       R.phase = 'pre'; R.lastMeasure = null; resetShots(); R.answers = {};
       if (!(await saveRec())){
         if (Store.mode === 'firebase'){ btn.disabled = false; btn.textContent = '설문 시작하기'; say(Store.fbUid ? '서버에 저장하지 못했어요. 연구자에게 Firestore 보안 규칙을 확인해 달라고 알려 주세요.' : (/admin-restricted|operation-not-allowed/.test(Store.fbAuthErr||'') ? 'Firebase에서 익명 로그인이 꺼져 있어요. 연구자에게 Authentication > 로그인 방법 > 익명을 켜 달라고 알려 주세요.' : '서버에 접속하지 못했어요 (' + (Store.fbAuthErr || '로그인 안 됨') + '). 페이지를 새로 고친 뒤 다시 해 주세요.')); return; }
@@ -868,8 +882,16 @@ function stepWelcome(){
   };
   btn.addEventListener('click', start);
   f.addEventListener('submit', e => { e.preventDefault(); start(); });
-  $('#wName').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); start(); } });
-  $('#wName').addEventListener('input', () => { $('#wName').classList.remove('bad'); if (msg.textContent) say(''); });
+  ['wNo','wName'].forEach(id => {
+    $('#'+id).addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing){ e.preventDefault(); if (id === 'wNo') $('#wName').focus(); else start(); } });
+    $('#'+id).addEventListener('input', () => { $('#'+id).classList.remove('bad'); if (msg.textContent) say(''); });
+  });
+  // 학번: 숫자가 아닌 글자는 입력되는 즉시 지움 (전각 숫자는 반각으로 바꿈)
+  $('#wNo').addEventListener('input', e => {
+    const el = e.target, before = el.value;
+    const after = before.replace(/[０-９]/g, d => String.fromCharCode(d.charCodeAt(0) - 0xFEE0)).replace(/\D/g, '').slice(0, 10);
+    if (after !== before){ el.value = after; if (/\D/.test(before.replace(/[０-９]/g,''))) say('학번은 숫자만 입력할 수 있어요.'); }
+  });
   $('#wAgree').addEventListener('change', () => { $('#wAgree').closest('.check').classList.remove('bad'); if (msg.textContent) say(''); });
 }
 
@@ -1590,9 +1612,9 @@ function adminDash(){
       <select id="resMetric" style="width:auto" aria-label="비교 지표">${Object.entries(METRICS).map(([k,v])=>`<option value="${k}" ${k===resMetric?'selected':''}>${v.l}</option>`).join('')}</select></div>
     ${rows.some(x=>x.preV!=null||x.postV!=null) ? `<div style="margin-bottom:6px"><span class="key"><i style="background:var(--pre)"></i>처음</span><span class="key"><i style="background:var(--post)"></i>스트레칭 후</span><span class="small muted">${mt.better==='up'?'높을수록 좋음':'낮을수록 균형'}</span></div><div class="chart-box"><canvas id="chBar" role="img" aria-label="참여자별 비교 막대그래프"></canvas></div>`
       : `<div class="empty">아직 측정 결과가 없어요. 참여 화면에서 첫 응답을 받아 보세요.</div>`}
-    <div class="tbl-wrap" style="margin-top:14px"><table class="t"><thead><tr><th style="width:34px"><input type="checkbox" id="selAll" aria-label="모두 선택" class="cb"></th><th>참여자</th><th>참여일</th><th class="num">처음</th><th class="num">스트레칭 후</th><th class="num">변화</th><th>등급</th><th>받은 해결책</th><th>설문</th></tr></thead>
+    <div class="tbl-wrap" style="margin-top:14px"><table class="t"><thead><tr><th style="width:34px"><input type="checkbox" id="selAll" aria-label="모두 선택" class="cb"></th><th>학번 · 이름</th><th>참여일</th><th class="num">처음</th><th class="num">스트레칭 후</th><th class="num">변화</th><th>등급</th><th>받은 해결책</th><th>설문</th></tr></thead>
       <tbody>${rows.length ? rows.map(x => { const d = (x.preV!=null&&x.postV!=null) ? x.postV-x.preV : null; const evp = x.post ? evaluate(x.post.metrics||{}) : (x.pre ? evaluate(x.pre.metrics||{}) : null);
-        return `<tr class="click" data-rec="${esc(x.r.id)}" tabindex="0"><td><input type="checkbox" class="cb sel" value="${esc(x.r.id)}" aria-label="${esc(x.r.name)} 선택"></td><td><b>${esc(x.r.name)}</b></td><td class="small muted">${x.r.createdAt?fmtDate(x.r.createdAt):'–'}</td><td class="num">${fmt(x.preV,dp)}</td><td class="num">${fmt(x.postV,dp)}</td><td class="num ${dc(d,mt.better)}">${d==null?'–':(d>0?'+':'')+fmt(d,dp)}</td><td>${evp?`<span class="pill ${evp.grade.c}">${evp.grade.t}</span>`:'<span class="muted">–</span>'}</td><td class="small">${solutionNames(x.post || x.pre).join(', ') || '<span class="muted">–</span>'}</td><td>${Object.keys(x.r.surveys||{}).length?'<span class="pill good">완료</span>':'<span class="pill gray">미응답</span>'}</td></tr>`; }).join('') : `<tr><td colspan="9" class="muted">참여자가 아직 없어요.</td></tr>`}</tbody></table></div>
+        return `<tr class="click" data-rec="${esc(x.r.id)}" tabindex="0"><td><input type="checkbox" class="cb sel" value="${esc(x.r.id)}" aria-label="${esc(dispName(x.r))} 선택"></td><td>${x.r.studentNo?`<span class="muted small">${esc(x.r.studentNo)}</span> `:""}<b>${esc(x.r.name)}</b></td><td class="small muted">${x.r.createdAt?fmtDate(x.r.createdAt):'–'}</td><td class="num">${fmt(x.preV,dp)}</td><td class="num">${fmt(x.postV,dp)}</td><td class="num ${dc(d,mt.better)}">${d==null?'–':(d>0?'+':'')+fmt(d,dp)}</td><td>${evp?`<span class="pill ${evp.grade.c}">${evp.grade.t}</span>`:'<span class="muted">–</span>'}</td><td class="small">${solutionNames(x.post || x.pre).join(', ') || '<span class="muted">–</span>'}</td><td>${Object.keys(x.r.surveys||{}).length?'<span class="pill good">완료</span>':'<span class="pill gray">미응답</span>'}</td></tr>`; }).join('') : `<tr><td colspan="9" class="muted">참여자가 아직 없어요.</td></tr>`}</tbody></table></div>
     <div class="row" style="margin-top:12px"><button class="btn sm danger" id="delSel" disabled>선택한 응답 지우기</button><span class="small muted">행을 누르면 참여자별 기록을 볼 수 있어요.</span><span class="spacer"></span><button class="btn sm" id="copyCsv">CSV 복사</button></div>
   </div>
   <div class="panel">
@@ -1620,14 +1642,14 @@ function adminDash(){
   const cr = rows.filter(x=>x.preV!=null||x.postV!=null);
   if ($('#chBar') && cr.length){
     const ds = (label, key, color) => ({ label, data: cr.map(x=>x[key]), backgroundColor: color, borderRadius:{topLeft:4,topRight:4}, borderSkipped:'bottom', maxBarThickness:32, borderColor:'#fff', borderWidth:{left:1,right:1} });
-    charts.bar = new Chart($('#chBar'), { type:'bar', data:{ labels: cr.map(x=>x.r.name), datasets:[ ds('처음','preV',cssVar('--pre')), ds('스트레칭 후','postV',cssVar('--post')) ] },
+    charts.bar = new Chart($('#chBar'), { type:'bar', data:{ labels: cr.map(x=>dispName(x.r)), datasets:[ ds('처음','preV',cssVar('--pre')), ds('스트레칭 후','postV',cssVar('--post')) ] },
       options:{ maintainAspectRatio:false, plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: c => `${c.dataset.label}: ${c.raw==null?'측정 없음':fmt(c.raw,dp)+mt.u}` } } },
         scales:{ x:{ grid:{display:false} }, y:{ beginAtZero:true, max: resMetric==='score'?100:undefined, grid:{color:grid}, border:{display:false}, title:{display:true,text:`${mt.l} (${mt.u})`} } } } });
   }
   if ($('#chScatter') && scatterX){
     const pts = recs.map(r => ({ r, x: answerOf(r, scatterX), y: scoreOf(latestMeasure(r, scatterY)) })).filter(p => p.x!=null && p.y!=null);
     const q = nq.find(q=>q.key===scatterX);
-    charts.sc = new Chart($('#chScatter'), { type:'scatter', data:{ datasets:[{ label:'참여자', data: pts.map(p=>({x:p.x,y:p.y,name:p.r.name})), backgroundColor:cssVar('--pre'), borderColor:'#fff', borderWidth:2, pointRadius:7, pointHoverRadius:9 }] },
+    charts.sc = new Chart($('#chScatter'), { type:'scatter', data:{ datasets:[{ label:'참여자', data: pts.map(p=>({x:p.x,y:p.y,name:dispName(p.r)})), backgroundColor:cssVar('--pre'), borderColor:'#fff', borderWidth:2, pointRadius:7, pointHoverRadius:9 }] },
       options:{ maintainAspectRatio:false, plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: c => `${c.raw.name}: ${c.raw.x}${q?.q.unit||''}, ${c.raw.y}점` } } },
         scales:{ x:{ title:{display:true,text:q?.label||''}, grid:{color:grid}, border:{display:false} }, y:{ title:{display:true,text:'자세 점수'}, grid:{color:grid}, border:{display:false}, suggestedMin:40, suggestedMax:100 } } } });
     const r = pearson(pts.map(p=>p.x), pts.map(p=>p.y)), note = $('#corrNote');
@@ -1644,15 +1666,15 @@ function solutionNames(meas){
 }
 function buildCsv(){
   const qs = []; sortedSurveys().forEach(s => (s.questions||[]).forEach(q => qs.push({ s, q })));
-  const head = ['참여자','참여일','측정시점','측정일시','자세점수','목각도CVA(°)','어깨각SA(°)','머리기울기(°)','어깨높이차(°)','골반높이차(°)','몸통기울기(°)','촬영횟수(정면/측면)','다시촬영필요','관찰항목','받은해결책', ...qs.map(x=>`${x.s.title}:${x.q.text}`)];
+  const head = ['학번','이름','참여일','측정시점','측정일시','자세점수','목각도CVA(°)','어깨각SA(°)','머리기울기(°)','어깨높이차(°)','골반높이차(°)','몸통기울기(°)','촬영횟수(정면/측면)','다시촬영필요','관찰항목','받은해결책', ...qs.map(x=>`${x.s.title}:${x.q.text}`)];
   const cell = v => { const s = String(v ?? ''); return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s; };
   const lines = [head.map(cell).join(',')];
   sortedRecords().forEach(r => {
     const ans = qs.map(x => { const a=(r.surveys||{})[x.s.id]; return a&&a.answers ? a.answers[x.q.id] : ''; });
     const joined = r.createdAt ? new Date(r.createdAt).toLocaleDateString('ko-KR') : '';
     const ms = [...(r.measures||[])].sort((a,b)=>a.at-b.at);
-    if (!ms.length) lines.push([r.name,joined,'','','','','','','','','','','','','',...ans].map(cell).join(','));
-    ms.forEach(m => { const mm = m.metrics||{}, ev = evaluate(mm) || {}, n = m.shots || mm.n || {}; lines.push([r.name, joined, m.phase==='post'?'스트레칭 후':'처음', new Date(m.at).toLocaleString('ko-KR'), scoreOf(m), fmt(mm.cva), fmt(mm.sa), fmt(mm.headTilt), fmt(mm.shoulderTilt), fmt(mm.pelvisTilt), fmt(mm.trunkTilt), `${n.front||0}/${n.side||0}`, ev.retake ? '예' : '', (ev.tags||[]).join(' / '), solutionNames(m).join(' / '), ...ans].map(cell).join(',')); });
+    if (!ms.length) lines.push([r.studentNo||'',r.name,joined,'','','','','','','','','','','','','',...ans].map(cell).join(','));
+    ms.forEach(m => { const mm = m.metrics||{}, ev = evaluate(mm) || {}, n = m.shots || mm.n || {}; lines.push([r.studentNo||'', r.name, joined, m.phase==='post'?'스트레칭 후':'처음', new Date(m.at).toLocaleString('ko-KR'), scoreOf(m), fmt(mm.cva), fmt(mm.sa), fmt(mm.headTilt), fmt(mm.shoulderTilt), fmt(mm.pelvisTilt), fmt(mm.trunkTilt), `${n.front||0}/${n.side||0}`, ev.retake ? '예' : '', (ev.tags||[]).join(' / '), solutionNames(m).join(' / '), ...ans].map(cell).join(',')); });
   });
   return lines.join('\n');
 }
@@ -1660,7 +1682,7 @@ function showDetail(id){
   const r = getRec(id); if (!r) return;
   const ms = [...(r.measures||[])].sort((a,b)=>b.at-a.at);
   const svs = sortedSurveys().filter(s => (r.surveys||{})[s.id]);
-  openModal(`<div class="row"><h3 style="margin:0">${esc(r.name)}</h3><span class="spacer"></span><button class="btn sm ghost" id="mClose">닫기</button></div>
+  openModal(`<div class="row"><h3 style="margin:0">${esc(dispName(r))}</h3><span class="spacer"></span><button class="btn sm ghost" id="mClose">닫기</button></div>
     <h4 style="margin:18px 0 8px;font-size:15px">측정 기록</h4>
     ${ms.length ? `<div class="tbl-wrap"><table class="t"><thead><tr><th>시점</th><th>일시</th><th class="num">점수</th><th class="num">목 각도</th><th class="num">어깨각</th><th class="num">머리</th><th class="num">어깨 높이</th><th class="num">골반</th><th></th></tr></thead><tbody>
       ${ms.map(m=>{const mm=m.metrics||{}, ev=evaluate(mm)||{}, n=m.shots||mm.n||{};return `<tr><td>${m.phase==='post'?'스트레칭 후':'처음'}</td><td class="small">${fmtDate(m.at)}</td><td class="num"><b>${scoreOf(m)??'–'}</b></td><td class="num">${fmt(mm.cva)}°</td><td class="num">${fmt(mm.sa)}°</td><td class="num">${fmt(mm.headTilt)}°</td><td class="num">${fmt(mm.shoulderTilt)}°</td><td class="num">${fmt(mm.pelvisTilt)}°</td><td><button class="btn sm ghost" data-del="${esc(m.id)}" aria-label="이 측정 삭제">삭제</button></td></tr>
@@ -1668,14 +1690,19 @@ function showDetail(id){
     </tbody></table></div><p class="small muted">같은 시점에 여러 번 측정했다면 가장 최근 기록으로 비교해요.</p>` : '<div class="empty">측정 기록이 없어요.</div>'}
     <h4 style="margin:18px 0 8px;font-size:15px">설문 응답</h4>
     ${svs.length ? svs.map(s => { const a = r.surveys[s.id]; return `<div style="margin-bottom:12px"><b class="small">${esc(s.title)}</b> <span class="small muted">${fmtDate(a.at)}</span><table class="t" style="margin-top:4px">${(s.questions||[]).map(q=>`<tr><td class="muted small" style="width:55%">${esc(q.text)}</td><td>${esc(a.answers?.[q.id] ?? '–')} ${a.answers?.[q.id]!=null&&q.unit?esc(q.unit):''}</td></tr>`).join('')}</table></div>`; }).join('') : '<div class="empty">설문 응답이 없어요.</div>'}
-    <div class="row" style="margin-top:18px"><input type="text" id="mName" value="${esc(r.name)}" style="max-width:220px" aria-label="이름 바꾸기"><button class="btn sm" id="mRename">이름 바꾸기</button><span class="spacer"></span><button class="btn sm danger" id="mDelete">이 응답 지우기</button></div>`);
+    <div class="row" style="margin-top:18px"><input type="text" id="mNo" value="${esc(r.studentNo||'')}" inputmode="numeric" maxlength="10" style="max-width:110px" aria-label="학번" placeholder="학번"><input type="text" id="mName" value="${esc(r.name)}" maxlength="20" style="max-width:160px" aria-label="이름"><button class="btn sm" id="mRename">학번·이름 바꾸기</button><span class="spacer"></span><button class="btn sm danger" id="mDelete">이 응답 지우기</button></div>`);
   $('#mClose').onclick = closeModal;
   $$('#modal [data-del]').forEach(b => b.onclick = async () => {
     const u = clone(r); u.measures = (u.measures||[]).filter(m => m.id !== b.dataset.del);
     try { await Store.saveRecord(u); toast('측정 기록을 삭제했어요.'); closeModal(); } catch(e){}
   });
-  $('#mRename').onclick = async () => { const v = $('#mName').value.trim(); if (!v || v===r.name) return; const u = clone(r); u.name = v; try { await Store.saveRecord(u); toast('이름을 바꿨어요.'); closeModal(); } catch(e){} };
-  $('#mDelete').onclick = async () => { closeModal(); if (await askConfirm(`${r.name}님의 설문 응답과 측정 기록을 모두 지울까요?`,'지우기')){ await deleteRecords([r.id]); } };
+  $('#mNo').addEventListener('input', e => { e.target.value = e.target.value.replace(/\D/g, '').slice(0, 10); });
+  $('#mRename').onclick = async () => { const v = $('#mName').value.trim(), no = $('#mNo').value.trim();
+    if (!v){ toast('이름을 입력해 주세요.'); return; }
+    if (no && !/^\d{1,10}$/.test(no)){ toast('학번은 숫자만 입력할 수 있어요.'); return; }
+    if (v === r.name && no === (r.studentNo||'')) return;
+    const u = clone(r); u.name = v; u.studentNo = no; try { await Store.saveRecord(u); toast('학번·이름을 바꿨어요.'); closeModal(); } catch(e){} };
+  $('#mDelete').onclick = async () => { closeModal(); if (await askConfirm(`${dispName(r)}님의 설문 응답과 측정 기록을 모두 지울까요?`,'지우기')){ await deleteRecords([r.id]); } };
 }
 
 /* ---- 설문 관리 ---- */
