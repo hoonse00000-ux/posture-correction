@@ -1,0 +1,34 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ▼ 연구자(관리자) 이메일을 여기에 적으세요. 여러 명이면 쉼표로 구분합니다.
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email in ['teacher@example.com'];
+    }
+    function signedIn() { return request.auth != null; }
+
+    // 설문 문항과 시작 화면 문구: 누구나 읽기, 연구자만 수정
+    match /surveys/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /app/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // 참여자 응답: 참여자는 자기 응답만 만들고 고칠 수 있고, 전체 보기·삭제는 연구자만
+    match /records/{id} {
+      allow create: if isAdmin()
+        || (signedIn() && request.resource.data.uid == request.auth.uid);
+      allow read: if isAdmin()
+        || (signedIn() && resource.data.uid == request.auth.uid);
+      allow update: if isAdmin()
+        || (signedIn() && resource.data.uid == request.auth.uid
+                       && request.resource.data.uid == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+  }
+}
