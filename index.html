@@ -1125,7 +1125,7 @@ function stepResult(){
       <span class="spacer"></span><button class="btn primary" id="rDone">참여 마치기</button>
     </div>
   </div>
-  <p class="small muted" style="margin:14px 4px 0">참고: 15~17세 청소년 275명의 평균 목 각도는 47.4°±5.2°였어요(Ruivo 등, Brazilian Journal of Physical Therapy, 2014). 이 값은 한 집단의 평균일 뿐 정상·비정상 기준이 아니에요. 이 결과는 진단이 아니라 학생 연구용 선별 결과예요.</p>`;
+  <p class="small muted" style="margin:14px 4px 0">참고: 15~17세 청소년 275명의 평균 목 각도는 47.4°±5.2°였어요(Ruivo et al., “Cervical and shoulder postural assessment of adolescents between 15 and 17 years old and association with upper quadrant pain”, Brazilian Journal of Physical Therapy, 2014). 이 값은 한 집단의 평균일 뿐 정상·비정상 기준이 아니에요. 이 결과는 진단이 아니라 학생 연구용 선별 결과예요.</p>`;
   if ($('#rAgain')) $('#rAgain').onclick = () => { resetShots(); R.phase = 'post'; go('photo'); };
   if ($('#rRetake')) $('#rRetake').onclick = () => { resetShots(); go('photo'); };
   $('#rDone').onclick = () => go('done');
@@ -1850,14 +1850,21 @@ function adminCriteria(){
   <div class="panel">
     <h3>기준의 근거와 주의할 점</h3>
     <ul class="small" style="margin:0;padding-left:18px;color:var(--ink-2);display:grid;gap:8px">
-      <li><b>청소년 평균 목 각도 47.4°±5.2°</b> — 포르투갈 중등학교 15~17세 275명의 선 자세 옆모습 사진 분석 결과예요. ±5.2°는 표준편차이며 정상 범위나 측정 오차가 아니에요. 한 집단의 평균이므로 판정 기준으로 쓰지 않고 참고 자료로만 보여 줘요. (Ruivo 등, Brazilian Journal of Physical Therapy, 2014)</li>
+      <li><b>청소년 평균 목 각도 47.4°±5.2°</b> — 포르투갈 중등학교 15~17세 275명의 선 자세 옆모습 사진 분석 결과예요. ±5.2°는 표준편차이며 정상 범위나 측정 오차가 아니에요. 한 집단의 평균이므로 판정 기준으로 쓰지 않고 참고 자료로만 보여 줘요. (참고 문헌 [1])</li>
       <li><b>목 각도 50° 미만</b> — 일부 자세 연구에서 전방 머리 자세의 분류 기준으로 쓴 값이에요. 50° 미만이라고 질병이나 손상이 확정되는 것은 아니에요.</li>
       <li><b>목 각도 46° 미만</b> — 인용한 논문들에서 별도의 위험 경계값으로 쓸 근거는 확인되지 않았어요. 46° 미만은 본 서비스의 내부 재측정 알림값이며, 임상적으로 검증된 위험 기준이 아닙니다.</li>
-      <li><b>어깨각 52° 초과 양호</b> — 일부 연구에서 양호 기준으로 쓴 사례가 있어요. (Journal of Bodywork and Movement Therapies, 2025; BMC Musculoskeletal Disorders, 2018)</li>
-      <li><b>사진 측정의 한계</b> — 카메라 수평, 촬영 거리·높이, 조명, 몸과 카메라의 방향, 해상도에 따라 값이 달라져요. 같은 조건에서 3회 찍어 중앙값을 쓰고, 차이가 ${s.retakeSpread}° 이상이면 다시 찍도록 안내해요. (Scientific Reports, 2025)</li>
+      <li><b>어깨각 52° 초과 양호</b> — 일부 연구에서 양호 기준으로 쓴 사례가 있어요. (참고 문헌 [2], [3])</li>
+      <li><b>사진 측정의 한계</b> — 카메라 수평, 촬영 거리·높이, 조명, 몸과 카메라의 방향, 해상도에 따라 값이 달라져요. 같은 조건에서 3회 찍어 중앙값을 쓰고, 차이가 ${s.retakeSpread}° 이상이면 다시 찍도록 안내해요. (참고 문헌 [4])</li>
       <li><b>개인 기준선</b> — 키·성별·나이·체형에 따라 차이가 커서 모두에게 같은 ‘정상 자세’를 강요하지 않고, 처음 측정값과 변화량을 함께 보여 줘요.</li>
       <li><b>안전한 해결책</b> — 턱을 세게 당기거나 어깨를 계속 젖히는 강제 교정 대신, 30~45분마다 자세를 바꾸고 걷거나 움직이도록 안내해요. 결과 문구도 ‘거북목 확정’ 같은 진단 표현을 쓰지 않아요.</li>
     </ul>
+    <h3 style="margin-top:20px">참고 문헌</h3>
+    <ol class="small" style="margin:0;padding-left:22px;color:var(--ink-2);display:grid;gap:8px" data-allow-copy>
+      <li>Ruivo et al. Cervical and shoulder postural assessment of adolescents between 15 and 17 years old and association with upper quadrant pain. <i>Brazilian Journal of Physical Therapy</i>, 2014.</li>
+      <li>Abu-Taleb et al. Effect of adding global postural reeducation to Kendall exercises for treating asymptomatic forward head posture: A single-blinded randomized controlled trial. <i>Journal of Bodywork and Movement Therapies</i>, 2025.</li>
+      <li>Moustafa et al. Does improvement towards a normal cervical sagittal configuration aid in the management of cervical myofascial pain syndrome: a 1-year randomized controlled trial. <i>BMC Musculoskeletal Disorders</i>, 2018.</li>
+      <li>Karbalaeimahdi et al. Photogrammetry-based smartphone applications for spinal posture assessment: a systematic review and meta-analysis. <i>Scientific Reports</i>, 2025.</li>
+    </ol>
   </div>`;
   $('#adminBody').addEventListener('input', () => adminEditing = true, { once:true });
   $('#saveCrit').onclick = async () => {
