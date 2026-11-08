@@ -540,16 +540,34 @@ async function bootFirebase(cfg){
     Store.fbEmail = u && !u.isAnonymous ? u.email : '';
     Store.isAdmin = !!(u && !u.isAnonymous && u.email && ADMIN_EMAILS.includes(u.email.toLowerCase()));
     subscribeRecords(Store.isAdmin);
+    autoSeed();
     if (Store.ready){ updateNav(); if (current === 'admin') renderAdmin(); }
   });
   let pending = 2, done = false, g1 = false, g2 = false;
   const finish = () => { if (!done){ done = true; clearTimeout(timer); startApp(); } };
   const got = () => { if (--pending <= 0) finish(); };
   const timer = setTimeout(() => { finish(); toast('서버 연결이 느려요. 표시된 내용이 최신이 아닐 수 있어요.'); }, 10000);
-  Store.db.collection('surveys').onSnapshot(snap => { Store.surveys = snap.docs.map(d => ({...d.data(), id:d.id})); if (!g1){ g1 = true; got(); } if (done) onDataChange(); },
+  Store.db.collection('surveys').onSnapshot(snap => {
+      const list = snap.docs.map(d => ({...d.data(), id:d.id}));
+      // 서버에 설문이 아직 없으면 기본 설문을 보여 주고, 연구자가 로그인하면 서버에 자동으로 넣음
+      Store.surveysVirtual = !list.length && !(Store.settings && Store.settings.seeded);
+      Store.surveys = Store.surveysVirtual ? [DEFAULT_SURVEY()] : list;
+      autoSeed();
+      if (!g1){ g1 = true; got(); } if (done) onDataChange(); },
     err => { Store.fbError = '설문을 읽지 못했어요(' + (err.code||err.message) + '). Firestore 보안 규칙을 확인하세요.'; if (!g1){ g1 = true; got(); } });
-  Store.db.doc('app/settings').onSnapshot(snap => { Store.settings = {...DEFAULT_SETTINGS, ...(snap.exists ? snap.data() : {})}; if (!g2){ g2 = true; got(); } if (done) onDataChange(); },
+  Store.db.doc('app/settings').onSnapshot(snap => { Store.settings = {...DEFAULT_SETTINGS, ...(snap.exists ? snap.data() : {})}; Store.settingsExists = snap.exists; if (Store.surveysVirtual && Store.settings.seeded){ Store.surveysVirtual = false; Store.surveys = []; } autoSeed(); if (!g2){ g2 = true; got(); } if (done) onDataChange(); },
     () => { if (!g2){ g2 = true; got(); } });
+}
+let seeding = false;
+async function autoSeed(){
+  if (Store.mode !== 'firebase' || !Store.isAdmin || Store.fbDenied || seeding || !Store.surveysVirtual) return;
+  seeding = true;
+  try {
+    await Store.db.collection('surveys').doc('sv-habits').set(clone(DEFAULT_SURVEY()));
+    await Store.db.doc('app/settings').set(clone({ ...Store.settingsFull, seeded:true }));
+    toast('서버에 기본 설문(15문항)과 시작 화면 문구를 넣었어요.');
+  } catch(e){ console.warn('기본 설문 넣기 실패', e); }
+  finally { seeding = false; }
 }
 const fbReady = () => FIREBASE_CONFIG && FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.projectId;
 async function boot(){
@@ -1624,7 +1642,7 @@ function adminSurveys(){
     const o = { ...Store.settingsFull, teamName: $('#iTeam').value.trim(), introTitle: $('#iTitle').value.trim() || DEFAULT_SETTINGS.introTitle, introText: $('#iText').value.trim() || DEFAULT_SETTINGS.introText, consentText: $('#iConsent').value.trim() || DEFAULT_SETTINGS.consentText };
     try { await Store.saveSettings(o); adminEditing = false; toast('시작 화면 문구를 저장했어요.'); } catch(e){}
   };
-  if ($('#seedSv')) $('#seedSv').onclick = async () => { try { await Store.saveSurvey(DEFAULT_SURVEY()); toast('기본 설문을 넣었어요.'); } catch(e){} };
+  if ($('#seedSv')) $('#seedSv').onclick = async () => { try { await Store.saveSurvey(DEFAULT_SURVEY()); if (Store.mode === 'firebase') await Store.saveSettings({ ...Store.settings, seeded:true }); toast('기본 설문을 넣었어요.'); } catch(e){} };
   $('#newSv').onclick = () => { draft = { id: uid('sv'), title:'', description:'', active:true, createdAt:Date.now(), questions:[ newQuestion('scale') ], _new:true }; renderAdmin(); };
   $$('#adminBody [data-act]').forEach(b => {
     const s = Store.surveys.find(x => x.id === b.dataset.id);
