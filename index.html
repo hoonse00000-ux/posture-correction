@@ -159,6 +159,8 @@ body.tighter .team{display:none}
 .opt{display:flex;align-items:center;gap:10px;padding:11px 14px;border:1px solid var(--rule-2);border-radius:10px;cursor:pointer;background:#fff}
 .opt:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
 .opt input{accent-color:var(--accent);width:17px;height:17px}
+.rng{display:flex;align-items:center;gap:6px}
+.rng input{min-width:0}
 .idrow{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,3fr);gap:10px}
 .num-in{display:flex;align-items:center;gap:10px;max-width:220px}
 .q-msg{margin:6px 0 0;font-size:13.5px;color:var(--bad);min-height:0}
@@ -319,7 +321,7 @@ const ADMIN_EMAILS = ['hoonse00000@gmail.com', 'sw.almond06@gmail.com', 'gigayu7
 const DEFAULT_SETTINGS = {
   critVer: 4,
   cvaGood: 50, cvaAlert: 46, saGood: 52, saAlert: 48, tiltGood: 3, tiltRetake: 5,
-  retakeSpread: 3, penWarn: 8, penPos: 18,
+  tiltRepeat: 2, retakeSpread: 3, penWarn: 8, penPos: 18,
   gradeGood: 90, gradeCaution: 70,
   apiUrl: '', apiHeader: 'Authorization', apiKey: '',
   teamName: '현대중학교', introTitle: "학생 맞춤형 자세 교정 웹앱 설문",
@@ -420,7 +422,7 @@ async function copyText(text){
    ========================================================= */
 const LS_KEY = 'adhl-posture-v1';
 const DEFAULT_PIN_HASH = 'fae07a6922e7acc82185e7160136eaeb6618c68040ab9da0ff804a29ea81d9e1';
-const CRIT_KEYS = ['cvaGood','cvaAlert','saGood','saAlert','tiltGood','tiltRetake','retakeSpread','penWarn','penPos','gradeGood','gradeCaution'];
+const CRIT_KEYS = ['cvaGood','cvaAlert','saGood','saAlert','tiltGood','tiltRetake','tiltRepeat','retakeSpread','penWarn','penPos','gradeGood','gradeCaution'];
 const Store = {
   mode: 'local', db: null, user: null, ready: false,
   surveys: [], records: [], settings: {...DEFAULT_SETTINGS},
@@ -669,9 +671,9 @@ function evaluate(m, st = Store.settingsFull){
   [['head','headTilt','머리 좌우 기울기 (귀 연결선)'],['shoulder','shoulderTilt','어깨 좌우 높이 (견봉 연결선)'],['pelvis','pelvisTilt','골반 좌우 높이']].forEach(([key, mk, label]) => {
     if (!Number.isFinite(m[mk])) return;
     const v = m[mk]; let lv = 0, tag = '양호';
-    if (v > st.tiltRetake){ const rep = (all[mk] || []).filter(x => x > st.tiltRetake).length >= 2; lv = rep ? 2 : 1; tag = rep ? '비대칭 선별 양성' : '재측정 필요'; }
+    if (v > st.tiltRetake){ const rep = (all[mk] || []).filter(x => x > st.tiltRetake).length >= (st.tiltRepeat || 2); lv = rep ? 2 : 1; tag = rep ? '비대칭 선별 양성' : '재측정 필요'; }
     else if (v > st.tiltGood){ lv = 1; tag = '재측정'; }
-    add({ key, mkey:mk, label, value:v, level:lv, tag, std:`0~${st.tiltGood}° 양호 · ${st.tiltGood}~${st.tiltRetake}° 재측정 · ${st.tiltRetake}° 초과 반복 시 선별 양성`, counted:true, note:(m.high||{})[key] });
+    add({ key, mkey:mk, label, value:v, level:lv, tag, std:`0~${st.tiltGood}° 양호 · ${st.tiltGood}~${st.tiltRetake}° 재측정 · ${st.tiltRetake}° 초과 ${st.tiltRepeat || 2}회 반복 시 선별 양성`, counted:true, note:(m.high||{})[key] });
   });
   if (Number.isFinite(m.trunkTilt)) add({ key:'trunk', mkey:'trunkTilt', label:'몸통 중심선 기울기', value:m.trunkTilt, level:0, tag:'참고', std:'신체 중앙 수직선 기준 참고값', counted:false });
   if (!items.length) return null;
@@ -1833,16 +1835,18 @@ function qEditHtml(q, i, n){
 function adminCriteria(){
   const s = Store.settingsFull;
   const f = (k, label, step='0.1') => `<div><label class="f">${label}</label><input type="number" step="${step}" data-k="${k}" value="${s[k]}"></div>`;
+  // 주의 범위: 양쪽 경계값과 연결된 입력칸 (어느 칸을 고쳐도 같은 값이 함께 바뀜)
+  const rng = (k1, k2, label) => `<div><label class="f">${label}</label><div class="rng"><input type="number" step="0.1" data-mirror="${k1}" value="${s[k1]}" aria-label="${label} 시작"><span>~</span><input type="number" step="0.1" data-mirror="${k2}" value="${s[k2]}" aria-label="${label} 끝"></div></div>`;
   $('#adminBody').innerHTML = `<div class="panel">
     <h3>측면: 목 각도 (CVA)</h3>
     <p class="sub">C7을 지나는 수평선과 C7–귀 구슬(이주) 선 사이의 각이에요.</p>
-    <div class="grid g3">${f('cvaGood','양호: 이 값 이상 (°)')}${f('cvaAlert','재측정 알림: 이 값 미만 (°)')}<div><label class="f">주의</label><input type="text" disabled value="${s.cvaAlert}° ~ ${fmt(s.cvaGood-0.1)}°"></div></div>
+    <div class="grid g3">${f('cvaGood','양호: 이 값 이상 (°)')}${rng('cvaAlert','cvaGood','주의: 이상 ~ 미만 (°)')}${f('cvaAlert','재측정 알림: 이 값 미만 (°)')}</div>
     <h3 style="margin-top:22px">측면: 어깨각 (SA)</h3>
     <p class="sub">C7을 지나는 수평선과 C7–견봉 선 사이의 각이에요.</p>
-    <div class="grid g3">${f('saGood','양호: 이 값 초과 (°)')}${f('saAlert','선별 양성: 이 값 미만 (°)')}<div><label class="f">주의</label><input type="text" disabled value="${s.saAlert}° ~ ${s.saGood}°"></div></div>
+    <div class="grid g3">${f('saGood','양호: 이 값 초과 (°)')}${rng('saAlert','saGood','주의: 이상 ~ 이하 (°)')}${f('saAlert','선별 양성: 이 값 미만 (°)')}</div>
     <h3 style="margin-top:22px">정면: 머리·어깨·골반 좌우 기울기</h3>
     <p class="sub">양쪽 귀(이주), 양쪽 견봉, 양쪽 골반을 이은 선이 수평선과 이루는 각이에요. 몸통 중심선 기울기는 참고값으로만 보여 줘요.</p>
-    <div class="grid g3">${f('tiltGood','양호: 이 값 이하 (°)')}${f('tiltRetake','재측정: 이 값 이하 (°)')}<div><label class="f">선별 양성</label><input type="text" disabled value="${s.tiltRetake}° 초과가 2회 이상 반복"></div></div>
+    <div class="grid g3">${f('tiltGood','양호: 이 값 이하 (°)')}${rng('tiltGood','tiltRetake','재측정: 초과 ~ 이하 (°)')}<div><label class="f">선별 양성: 반복 횟수</label><div class="rng"><span class="muted small" style="white-space:nowrap"><b data-text="tiltRetake">${s.tiltRetake}</b>° 초과가</span><input type="number" step="1" min="1" max="3" data-k="tiltRepeat" value="${s.tiltRepeat}"><span class="muted small" style="white-space:nowrap">회 이상</span></div></div></div>
     <h3 style="margin-top:22px">반복 측정과 점수</h3>
     <div class="grid g3">${f('retakeSpread','다시 촬영: 촬영 간 차이 이 값 이상 (°)')}${f('penWarn','주의·재측정 항목 감점','1')}${f('penPos','선별 양성·알림 항목 감점','1')}${f('gradeGood','‘양호’ 등급: 이 점수 이상','1')}${f('gradeCaution','‘주의’ 등급: 이 점수 이상','1')}</div>
     <div class="row" style="margin-top:20px"><button class="btn" id="resetCrit">기본값 채우기</button><span class="spacer"></span><button class="btn primary" id="saveCrit">기준 저장</button></div>
@@ -1867,13 +1871,19 @@ function adminCriteria(){
     </ol>
   </div>`;
   $('#adminBody').addEventListener('input', () => adminEditing = true, { once:true });
+  $('#adminBody').addEventListener('input', e => {
+    const k = e.target.dataset.k || e.target.dataset.mirror; if (!k) return;
+    $$(`#adminBody [data-k="${k}"], #adminBody [data-mirror="${k}"]`).forEach(el => { if (el !== e.target) el.value = e.target.value; });
+    $$(`#adminBody [data-text="${k}"]`).forEach(el => el.textContent = e.target.value);
+  });
   $('#saveCrit').onclick = async () => {
-    const o = { ...Store.settingsFull }; $$('#adminBody [data-k]').forEach(i => o[i.dataset.k] = num(i.value, DEFAULT_SETTINGS[i.dataset.k]));
+    const o = { ...Store.settingsFull }; $$('#adminBody [data-k], #adminBody [data-mirror]').forEach(i => { const k = i.dataset.k || i.dataset.mirror; o[k] = num(i.value, DEFAULT_SETTINGS[k]); });
+    o.tiltRepeat = Math.max(1, Math.min(3, Math.round(o.tiltRepeat)));
     if (o.cvaAlert >= o.cvaGood || o.saAlert > o.saGood || o.tiltGood >= o.tiltRetake){ toast('경계값 순서를 확인해 주세요. (알림값 < 양호값)'); return; }
     if (o.gradeCaution > o.gradeGood){ toast('‘주의’ 점수는 ‘양호’ 점수보다 낮아야 해요.'); return; }
     try { await Store.saveSettings(o); adminEditing=false; toast('기준을 저장했어요. 모든 결과에 바로 반영돼요.'); adminCriteria(); } catch(e){}
   };
-  $('#resetCrit').onclick = () => { $$('#adminBody [data-k]').forEach(i => i.value = DEFAULT_SETTINGS[i.dataset.k]); adminEditing = true; toast('기본값을 채웠어요. 기준 저장을 눌러야 적용돼요.'); };
+  $('#resetCrit').onclick = () => { $$('#adminBody [data-k], #adminBody [data-mirror]').forEach(i => i.value = DEFAULT_SETTINGS[i.dataset.k || i.dataset.mirror]); $$('#adminBody [data-text]').forEach(el => el.textContent = DEFAULT_SETTINGS[el.dataset.text]); adminEditing = true; toast('기본값을 채웠어요. 기준 저장을 눌러야 적용돼요.'); };
 }
 
 /* ---- 데이터 ---- */
