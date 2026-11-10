@@ -159,6 +159,9 @@ body.tighter .team{display:none}
 .opt{display:flex;align-items:center;gap:10px;padding:11px 14px;border:1px solid var(--rule-2);border-radius:10px;cursor:pointer;background:#fff}
 .opt:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
 .opt input{accent-color:var(--accent);width:17px;height:17px}
+.fbar{padding:16px 18px;margin-bottom:14px}
+.fgrid{display:grid;grid-template-columns:1fr 1.3fr 1.6fr 1.3fr;gap:10px}
+@media (max-width:760px){.fgrid{grid-template-columns:1fr 1fr}}
 .rng{display:flex;align-items:center;gap:6px}
 .rng input{min-width:0}
 .idrow{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,3fr);gap:10px}
@@ -1588,9 +1591,61 @@ function numericQuestions(){
   return out;
 }
 function answerOf(rec, key){ const [sid,qid] = key.split('|'); if (sid === 'derived'){ const v = groupScore(rec, DERIVED[qid].group); return v == null ? null : Math.round(v*100)/100; } const a = (rec.surveys||{})[sid]; const v = a && a.answers ? a.answers[qid] : null; return (v===null||v===undefined||v==='') ? null : Number(v); }
+/* ---- 결과 필터: 학번에서 학년·반을 읽음 (5자리 20307 = 2학년 03반 07번, 4자리 2307 = 2학년 3반 07번) ---- */
+function classOf(r){
+  const no = (r && r.studentNo) || '';
+  if (/^\d{5}$/.test(no)) return { grade: +no[0], cls: +no.slice(1,3), num: +no.slice(3) };
+  if (/^\d{4}$/.test(no)) return { grade: +no[0], cls: +no[1], num: +no.slice(2) };
+  return null;
+}
+const classKey = r => { const c = classOf(r); return c ? `${c.grade}-${c.cls}` : 'none'; };
+const classLabel = k => k === 'none' ? '학번 없음·기타' : `${k.split('-')[0]}학년 ${k.split('-')[1]}반`;
+const F = { grade:'', cls:'', q:'', status:'' };
+function filteredRecords(){
+  const q = F.q.trim().toLowerCase();
+  return sortedRecords().filter(r => {
+    const c = classOf(r);
+    if (F.grade && (!c || String(c.grade) !== F.grade)) return false;
+    if (F.cls && classKey(r) !== F.cls) return false;
+    if (q && !((r.name||'').toLowerCase().includes(q) || (r.studentNo||'').includes(q))) return false;
+    if (F.status){
+      const pre = latestMeasure(r,'pre'), post = latestMeasure(r,'post');
+      if (F.status === 'none' && (pre || post)) return false;
+      if (F.status === 'pre' && !(pre && !post)) return false;
+      if (F.status === 'both' && !(pre && post)) return false;
+      if (F.status === 'retake' && !((post||pre) && (evaluate((post||pre).metrics||{})||{}).retake)) return false;
+      if (F.status === 'flag' && !((post||pre) && ((evaluate((post||pre).metrics||{})||{}).items||[]).some(i => i.level === 2))) return false;
+    }
+    return true;
+  });
+}
+function filterBarHtml(total, shown){
+  const all = sortedRecords();
+  const grades = [...new Set(all.map(r => classOf(r)).filter(Boolean).map(c => c.grade))].sort((a,b)=>a-b);
+  const classes = [...new Set(all.map(classKey))].filter(k => !F.grade || k.startsWith(F.grade + '-'))
+    .sort((a,b) => a === 'none' ? 1 : b === 'none' ? -1 : (+a.split('-')[0] - +b.split('-')[0]) || (+a.split('-')[1] - +b.split('-')[1]));
+  const cnt = k => all.filter(r => classKey(r) === k).length;
+  const active = F.grade || F.cls || F.q || F.status;
+  return `<div class="panel fbar">
+    <div class="fgrid">
+      <div><label class="f" for="fGrade">학년</label><select id="fGrade"><option value="">전체 학년</option>${grades.map(g=>`<option value="${g}" ${F.grade===String(g)?'selected':''}>${g}학년</option>`).join('')}</select></div>
+      <div><label class="f" for="fCls">반</label><select id="fCls"><option value="">전체 반</option>${classes.map(k=>`<option value="${k}" ${F.cls===k?'selected':''}>${classLabel(k)} (${cnt(k)}명)</option>`).join('')}</select></div>
+      <div><label class="f" for="fQ">이름·학번 검색</label><input type="text" id="fQ" value="${esc(F.q)}" placeholder="예: 김민지, 20307" autocomplete="off"></div>
+      <div><label class="f" for="fStatus">측정 상태</label><select id="fStatus">${[['','전체'],['none','측정 안 함'],['pre','처음만 측정'],['both','처음·스트레칭 후 모두'],['flag','선별 양성·알림 있음'],['retake','다시 촬영 필요']].map(([v,l])=>`<option value="${v}" ${F.status===v?'selected':''}>${l}</option>`).join('')}</select></div>
+    </div>
+    <div class="row" style="margin-top:10px"><span class="small muted">${active ? `전체 ${total}명 중 <b style="color:var(--ink)">${shown}명</b>을 보고 있어요. 아래 통계·그래프·표·CSV 모두 이 조건으로 보여 줘요.` : `전체 ${total}명. 학년·반은 학번(예: 20307 = 2학년 3반 7번)에서 자동으로 나눠요.`}</span><span class="spacer"></span>${active ? '<button class="btn sm ghost" id="fReset">필터 지우기</button>' : ''}</div>
+  </div>`;
+}
+function bindFilterBar(){
+  $('#fGrade').onchange = e => { F.grade = e.target.value; if (F.cls && !F.cls.startsWith(F.grade + '-')) F.cls = ''; adminDash(); };
+  $('#fCls').onchange = e => { F.cls = e.target.value; adminDash(); };
+  $('#fStatus').onchange = e => { F.status = e.target.value; adminDash(); };
+  let t; $('#fQ').addEventListener('input', e => { clearTimeout(t); const v = e.target.value; t = setTimeout(() => { F.q = v; adminDash(); const q = $('#fQ'); if (q){ q.focus(); q.setSelectionRange(q.value.length, q.value.length); } }, 250); });
+  if ($('#fReset')) $('#fReset').onclick = () => { F.grade = ''; F.cls = ''; F.q = ''; F.status = ''; adminDash(); };
+}
 function adminDash(){
   Object.values(charts).forEach(c => c && c.destroy && c.destroy());
-  const recs = sortedRecords();
+  const recs = filteredRecords(), totalAll = Store.records.length;
   const rows = recs.map(r => { const pre = latestMeasure(r,'pre'), post = latestMeasure(r,'post');
     return { r, pre, post, preV: metricOf(pre, resMetric), postV: metricOf(post, resMetric), preS: scoreOf(pre), postS: scoreOf(post) }; });
   const both = rows.filter(x => x.preS!=null && x.postS!=null);
@@ -1602,9 +1657,9 @@ function adminDash(){
   const nq = numericQuestions(); if (!nq.find(q=>q.key===scatterX)) scatterX = nq[0]?.key || '';
   const mt = METRICS[resMetric], dp = resMetric==='score'?0:1;
   const dc = (d, better) => d==null||Math.abs(d)<0.05 ? '' : ((d>0) === (better==='up') ? 'delta-up' : 'delta-down');
-  $('#adminBody').innerHTML = `
+  $('#adminBody').innerHTML = filterBarHtml(totalAll, recs.length) + `
   <div class="grid g4">
-    <div class="stat"><div class="k">참여자</div><div class="v">${recs.length}</div><div class="s">설문 완료 ${surveyed}명</div></div>
+    <div class="stat"><div class="k">${F.grade||F.cls||F.q||F.status ? '선택한 참여자' : '참여자'}</div><div class="v">${recs.length}</div><div class="s">설문 완료 ${surveyed}명</div></div>
     <div class="stat"><div class="k">처음 측정 평균</div><div class="v">${fmt(avgPre)}</div><div class="s">${preL.length}명 측정</div></div>
     <div class="stat"><div class="k">스트레칭 후 평균</div><div class="v">${fmt(avgPost)}</div><div class="s">${postL.length}명 측정</div></div>
     <div class="stat"><div class="k">평균 변화</div><div class="v ${dc(avgDelta,'up')}">${avgDelta==null?'–':(avgDelta>0?'+':'')+fmt(avgDelta)}</div><div class="s">두 번 모두 측정한 ${both.length}명 중 ${improved}명 상승</div></div>
@@ -1616,7 +1671,7 @@ function adminDash(){
       : `<div class="empty">아직 측정 결과가 없어요. 참여 화면에서 첫 응답을 받아 보세요.</div>`}
     <div class="tbl-wrap" style="margin-top:14px"><table class="t"><thead><tr><th style="width:34px"><input type="checkbox" id="selAll" aria-label="모두 선택" class="cb"></th><th>학번 · 이름</th><th>참여일</th><th class="num">처음</th><th class="num">스트레칭 후</th><th class="num">변화</th><th>등급</th><th>받은 해결책</th><th>설문</th></tr></thead>
       <tbody>${rows.length ? rows.map(x => { const d = (x.preV!=null&&x.postV!=null) ? x.postV-x.preV : null; const evp = x.post ? evaluate(x.post.metrics||{}) : (x.pre ? evaluate(x.pre.metrics||{}) : null);
-        return `<tr class="click" data-rec="${esc(x.r.id)}" tabindex="0"><td><input type="checkbox" class="cb sel" value="${esc(x.r.id)}" aria-label="${esc(dispName(x.r))} 선택"></td><td>${x.r.studentNo?`<span class="muted small">${esc(x.r.studentNo)}</span> `:""}<b>${esc(x.r.name)}</b></td><td class="small muted">${x.r.createdAt?fmtDate(x.r.createdAt):'–'}</td><td class="num">${fmt(x.preV,dp)}</td><td class="num">${fmt(x.postV,dp)}</td><td class="num ${dc(d,mt.better)}">${d==null?'–':(d>0?'+':'')+fmt(d,dp)}</td><td>${evp?`<span class="pill ${evp.grade.c}">${evp.grade.t}</span>`:'<span class="muted">–</span>'}</td><td class="small">${solutionNames(x.post || x.pre).join(', ') || '<span class="muted">–</span>'}</td><td>${Object.keys(x.r.surveys||{}).length?'<span class="pill good">완료</span>':'<span class="pill gray">미응답</span>'}</td></tr>`; }).join('') : `<tr><td colspan="9" class="muted">참여자가 아직 없어요.</td></tr>`}</tbody></table></div>
+        return `<tr class="click" data-rec="${esc(x.r.id)}" tabindex="0"><td><input type="checkbox" class="cb sel" value="${esc(x.r.id)}" aria-label="${esc(dispName(x.r))} 선택"></td><td>${x.r.studentNo?`<span class="muted small">${esc(x.r.studentNo)}</span> `:""}<b>${esc(x.r.name)}</b></td><td class="small muted">${x.r.createdAt?fmtDate(x.r.createdAt):'–'}</td><td class="num">${fmt(x.preV,dp)}</td><td class="num">${fmt(x.postV,dp)}</td><td class="num ${dc(d,mt.better)}">${d==null?'–':(d>0?'+':'')+fmt(d,dp)}</td><td>${evp?`<span class="pill ${evp.grade.c}">${evp.grade.t}</span>`:'<span class="muted">–</span>'}</td><td class="small">${solutionNames(x.post || x.pre).join(', ') || '<span class="muted">–</span>'}</td><td>${Object.keys(x.r.surveys||{}).length?'<span class="pill good">완료</span>':'<span class="pill gray">미응답</span>'}</td></tr>`; }).join('') : `<tr><td colspan="9" class="muted">${totalAll ? '조건에 맞는 참여자가 없어요. 필터를 바꿔 보세요.' : '참여자가 아직 없어요.'}</td></tr>`}</tbody></table></div>
     <div class="row" style="margin-top:12px"><button class="btn sm danger" id="delSel" disabled>선택한 응답 지우기</button><span class="small muted">행을 누르면 참여자별 기록을 볼 수 있어요.</span><span class="spacer"></span><button class="btn sm" id="copyCsv">CSV 복사</button></div>
   </div>
   <div class="panel">
@@ -1636,7 +1691,8 @@ function adminDash(){
   delSel.onclick = async () => { const ids = selBoxes.filter(b=>b.checked).map(b=>b.value); if (!ids.length) return;
     if (await askConfirm(`선택한 ${ids.length}명의 설문 응답과 측정 기록을 지울까요? 되돌릴 수 없어요.`, '지우기')){ adminEditing = false; await deleteRecords(ids); } };
   $$('#adminBody tr[data-rec]').forEach(tr => { tr.onclick = () => showDetail(tr.dataset.rec); tr.onkeydown = e => { if (e.key==='Enter') showDetail(tr.dataset.rec); }; });
-  $('#copyCsv').onclick = () => copyText(buildCsv());
+  $('#copyCsv').onclick = () => copyText(buildCsv(recs));
+  bindFilterBar();
   if ($('#scX')){ $('#scX').onchange = e => { scatterX = e.target.value; adminDash(); }; $('#scY').onchange = e => { scatterY = e.target.value; adminDash(); }; }
   if (!window.Chart){ $$('#adminBody .chart-box').forEach(b => { b.style.height='auto'; b.innerHTML = '<div class="empty">그래프 도구를 불러오지 못했어요. 표와 CSV를 참고하세요.</div>'; }); return; }
   Chart.defaults.font.family = '"IBM Plex Sans KR", sans-serif'; Chart.defaults.color = cssVar('--ink-2');
@@ -1666,12 +1722,12 @@ function solutionNames(meas){
   const keys = meas.solutions || (evaluate(meas.metrics||{}) || {}).exercises || [];
   return keys.map(k => EXERCISES[k] ? EXERCISES[k].name : k);
 }
-function buildCsv(){
+function buildCsv(list){
   const qs = []; sortedSurveys().forEach(s => (s.questions||[]).forEach(q => qs.push({ s, q })));
   const head = ['학번','이름','참여일','측정시점','측정일시','자세점수','목각도CVA(°)','어깨각SA(°)','머리기울기(°)','어깨높이차(°)','골반높이차(°)','몸통기울기(°)','촬영횟수(정면/측면)','다시촬영필요','관찰항목','받은해결책', ...qs.map(x=>`${x.s.title}:${x.q.text}`)];
   const cell = v => { const s = String(v ?? ''); return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s; };
   const lines = [head.map(cell).join(',')];
-  sortedRecords().forEach(r => {
+  (list || sortedRecords()).forEach(r => {
     const ans = qs.map(x => { const a=(r.surveys||{})[x.s.id]; return a&&a.answers ? a.answers[x.q.id] : ''; });
     const joined = r.createdAt ? new Date(r.createdAt).toLocaleDateString('ko-KR') : '';
     const ms = [...(r.measures||[])].sort((a,b)=>a.at-b.at);
