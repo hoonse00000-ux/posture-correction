@@ -37,5 +37,12 @@ service cloud.firestore {
         && request.resource.data.name.size() <= 60;
       allow read, delete: if isAdmin();
     }
+
+    // 진행 상태(설문 완료·촬영 완료 여부만 담음): 다시 들어온 참여자가 촬영 단계만 이어 할 수 있게 해요.
+    // 문서 주소는 학번+이름으로 만든 암호화 키라서 남의 상태를 찾아보기 어려워요.
+    match /status/{key} {
+      allow get, create, update: if signedIn();
+      allow list, delete: if isAdmin();
+    }
   }
 }

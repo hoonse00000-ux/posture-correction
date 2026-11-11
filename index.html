@@ -475,7 +475,7 @@ const Store = {
     const col = kind==='survey' ? 'surveys' : 'records';
     const body = clone(obj);
     if (this.mode === 'firebase' && kind === 'record' && !body.uid) body.uid = this.fbUid;
-    return this.queue(col+'/'+id, () => this.db.collection(col).doc(id).set(body)).catch(handleWriteError);
+    return this.queue(col+'/'+id, async () => { await this.db.collection(col).doc(id).set(body); if (kind === 'record') await writeStatus(body); }).catch(handleWriteError);
   },
   async remove(kind, id){
     if (this.mode === 'local'){
@@ -484,7 +484,9 @@ const Store = {
       this.persistLocal(); onDataChange(); return;
     }
     const col = kind==='survey' ? 'surveys' : 'records';
-    return this.queue(col+'/'+id, () => this.db.collection(col).doc(id).delete()).catch(handleWriteError);
+    const old = kind === 'record' ? this.records.find(r => r.id === id) : null;
+    return this.queue(col+'/'+id, async () => { await this.db.collection(col).doc(id).delete();
+      if (this.mode === 'firebase' && old && old.key){ try { await this.fb.fs.deleteDoc(this.fb.fs.doc(this.fb.db, 'status', old.key)); } catch(e){} } }).catch(handleWriteError);
   },
   saveSurvey(s){ return this.write('survey', s.id, s); },
   deleteSurvey(id){ return this.remove('survey', id); },
@@ -499,6 +501,7 @@ const Store = {
   get admin(){ if (this.mode === 'firebase') return this.isAdmin && !this.fbDenied; return (this.mode === 'cloud' ? this.isAdmin : true) && this.localAdmin; },
   get canBeAdmin(){ return this.mode === 'local' || this.mode === 'firebase' || this.isAdmin; }
 };
+function handleWriteErrorSafe(e){ try { handleWriteError(e); } catch(_){} }
 function handleWriteError(e){
   const code = e && e.code;
   if (code === 'permission-denied'){ toast(Store.mode === 'firebase' && !Store.fbUid ? '서버에 로그인되지 않았어요. Firebase에서 익명 로그인을 켜 주세요.' : '서버에 저장할 권한이 없어요. Firestore 보안 규칙을 확인하세요.'); }
@@ -538,7 +541,7 @@ async function bootFirebase(cfg){
   const [appM, fsM, auM] = await withTimeout(Promise.all([imp('firebase-app.js'), imp('firebase-firestore.js'), imp('firebase-auth.js')]), 15000);
   const app = appM.initializeApp(cfg);
   const fdb = fsM.getFirestore(app), auth = auM.getAuth(app);
-  Store.mode = 'firebase'; Store.db = makeFbAdapter(fsM, fdb); Store.fb = { auth, au:auM, projectId: cfg.projectId };
+  Store.mode = 'firebase'; Store.db = makeFbAdapter(fsM, fdb); Store.fb = { auth, au:auM, fs:fsM, db:fdb, projectId: cfg.projectId };
   // 첫 인증 상태: 로그인 안 되어 있으면 익명으로 로그인 (참여자)
   await withTimeout(new Promise(res => {
     const off = auM.onAuthStateChanged(auth, async u => { off(); if (!u){ try { await auM.signInAnonymously(auth); } catch(e){ Store.fbAuthErr = e.code || e.message; Store.fbError = '익명 로그인이 꺼져 있어요. Firebase 콘솔 > Authentication에서 ‘익명’을 사용 설정하세요.'; } } res(); });
@@ -784,12 +787,43 @@ const isKiosk = () => !(Store.mode === 'cloud' && !Store.isAdmin);
 function totalQuestions(){ return activeSurveys().reduce((a,s)=>a+(s.questions||[]).length,0); }
 function stepperHtml(){
   const steps = [['welcome','참여 동의']];
-  if (activeSurveys().length) steps.push(['survey','설문']);
+  if (activeSurveys().length && !(R.rec && R.rec.resume)) steps.push(['survey','설문']);
   steps.push(['photo','자세 촬영'],['result','결과']);
   const order = steps.map(s=>s[0]);
   const idx = R.step === 'done' ? order.length : order.indexOf(R.step);
   return `<div class="stepper" aria-label="진행 단계"><ol>${steps.map(([k,l],i)=>`<li class="${i<idx?'done':i===idx?'now':''}" ${i===idx?'aria-current="step"':''}>${i+1}. ${l}</li>`).join('')}</ol></div>`;
 }
+/* ---- 참여자 구분과 이어하기 ----
+   학번+이름으로 만든 고유 키로 같은 사람의 응답을 하나로 모아요.
+   Firebase에서는 참여자가 응답 전체를 읽을 수 없으므로, 진행 상태만 담은 status 문서로 이어할 단계를 알아내요. */
+async function participantKey(no, name){ return (await sha256(`${no}|${name}`)).slice(0, 32) || uid('k'); }
+const recIdFromKey = key => 'r-' + key.slice(0, 24);
+async function lookupProgress(key, no, name){
+  if (Store.mode === 'firebase'){
+    try {
+      const snap = await Store.fb.fs.getDoc(Store.fb.fs.doc(Store.fb.db, 'status', key));
+      if (!snap.exists()) return null;
+      const d = snap.data();
+      return { recId: d.recId, surveyDone: !!d.surveyDone, photoDone: !!d.photoDone, full: null };
+    } catch(e){ console.warn('진행 상태를 읽지 못함', e); return null; }
+  }
+  const r = Store.records.find(x => x.key === key) || Store.records.find(x => x.studentNo === no && x.name === name);
+  if (!r) return null;
+  return { recId: r.id, surveyDone: Object.keys(r.surveys||{}).length > 0, photoDone: (r.measures||[]).length > 0, full: r };
+}
+function statusOf(rec){ return { recId: rec.id, surveyDone: Object.keys(rec.surveys||{}).length > 0, photoDone: (rec.measures||[]).length > 0, at: Date.now() }; }
+async function writeStatus(rec){
+  if (Store.mode !== 'firebase' || !rec || !rec.key) return;
+  try { await Store.fb.fs.setDoc(Store.fb.fs.doc(Store.fb.db, 'status', rec.key), statusOf(rec)); } catch(e){ console.warn('진행 상태 저장 실패', e); }
+}
+// Firebase 이어하기: 응답 전체를 읽지 않고 측정 기록만 덧붙임
+async function appendMeasureFb(rec, meas){
+  if (!(await ensureFbUser())) throw { code:'unauthenticated' };
+  const fs = Store.fb.fs;
+  await fs.setDoc(fs.doc(Store.fb.db, 'records', rec.id), { measures: fs.arrayUnion(clone(meas)), name: rec.name, studentNo: rec.studentNo || '', key: rec.key, uid: Store.fbUid }, { merge:true });
+  await fs.setDoc(fs.doc(Store.fb.db, 'status', rec.key), { recId: rec.id, surveyDone: true, photoDone: true, at: Date.now() }, { merge:true });
+}
+
 // Firebase: 로그인이 풀려 있으면 저장 직전에 익명 로그인을 다시 시도
 async function ensureFbUser(){
   if (Store.mode !== 'firebase') return true;
@@ -870,10 +904,26 @@ function stepWelcome(){
     say('');
     btn.disabled = true; btn.textContent = '시작하는 중…';
     try {
-      const id = isKiosk() ? uid('p') : Store.selfId;
-      const prev = getRec(id);
-      R.rec = prev ? { ...clone(prev), name, studentNo:no, consent:true } : { id, name, studentNo:no, consent:true, createdAt: Date.now(), surveys:{}, measures:[] };
       R.phase = 'pre'; R.lastMeasure = null; resetShots(); R.answers = {};
+      const key = await participantKey(no, name);
+      if (Store.mode === 'firebase') await ensureFbUser();
+      const prog = isKiosk() ? await lookupProgress(key, no, name) : null;
+      if (prog && prog.surveyDone && prog.photoDone){
+        btn.disabled = false; btn.textContent = '설문 시작하기';
+        say(`${name}님은 설문과 자세 촬영을 이미 모두 마쳤어요. 참여해 주셔서 고맙습니다.`);
+        return;
+      }
+      if (prog && prog.surveyDone && !prog.photoDone){
+        // 설문은 했고 촬영만 안 한 사람: 촬영 단계로 바로 이동, 기존 응답에 측정만 덧붙임
+        R.rec = prog.full ? { ...clone(prog.full), name, studentNo:no, key, resume:true }
+                          : { id: prog.recId, name, studentNo:no, key, consent:true, surveys:{}, measures:[], resume:true, partial:true };
+        toast('설문은 이미 마쳤어요. 자세 촬영만 하면 돼요.');
+        go('photo');
+        return;
+      }
+      const id = isKiosk() ? (prog ? prog.recId : recIdFromKey(key)) : Store.selfId;
+      const prev = getRec(id);
+      R.rec = prev ? { ...clone(prev), name, studentNo:no, key, consent:true } : { id, name, studentNo:no, key, consent:true, createdAt: Date.now(), surveys:{}, measures:[] };
       if (!(await saveRec())){
         if (Store.mode === 'firebase'){ btn.disabled = false; btn.textContent = '설문 시작하기'; say(Store.fbUid ? '서버에 저장하지 못했어요. 연구자에게 Firestore 보안 규칙을 확인해 달라고 알려 주세요.' : (/admin-restricted|operation-not-allowed/.test(Store.fbAuthErr||'') ? 'Firebase에서 익명 로그인이 꺼져 있어요. 연구자에게 Authentication > 로그인 방법 > 익명을 켜 달라고 알려 주세요.' : '서버에 접속하지 못했어요 (' + (Store.fbAuthErr || '로그인 안 됨') + '). 페이지를 새로 고친 뒤 다시 해 주세요.')); return; }
         if (Store.mode === 'cloud'){ btn.disabled = false; btn.textContent = '설문 시작하기'; say('응답을 저장할 권한이 없어요. 연구 담당자에게 이 페이지의 참여 권한을 요청하세요.'); return; }
@@ -998,6 +1048,7 @@ function stepPhoto(){
   const post = R.phase === 'post';
   $('#flow').innerHTML = stepperHtml() + `
   <div class="panel">
+    ${R.rec && R.rec.resume && !post ? `<p class="notice info" style="margin:0 0 14px">${esc(R.rec.name)}님은 설문을 이미 마쳤어요. 자세 촬영만 하면 참여가 끝나요.</p>` : ''}
     <h2>${post ? '스트레칭 후 다시 찍어 주세요' : '자세 사진을 찍어 주세요'}</h2>
     <p class="sub">${post ? '처음과 같은 위치, 같은 거리, 같은 높이에서 찍어야 정확하게 비교할 수 있어요.' : 'AI가 기준점(귀, 목 뒤 7번 목뼈, 어깨, 골반)을 찾아요. 점이 어긋나 있으면 끌어서 맞춰 주세요. 끄는 동안 확대경이 나와요.'}</p>
     <div class="tips">
@@ -1011,12 +1062,11 @@ function stepPhoto(){
     </div>
     <div class="status" id="aiStatus" style="margin-top:12px"></div>
     <p class="q-msg" id="pMsg" role="alert" style="margin-top:16px"></p>
-    <div class="actions"><button class="btn ghost" type="button" id="pBack">이전</button><button class="btn ghost" type="button" id="pSkip">측정 건너뛰기</button><span class="spacer"></span><button class="btn primary soft-off" id="toResult" type="button">결과 보기</button></div>
+    <div class="actions"><button class="btn ghost" type="button" id="pBack">이전</button><span class="spacer"></span><button class="btn primary soft-off" id="toResult" type="button">결과 보기</button></div>
   </div>`;
   ['front','side'].forEach(k => { bindSlot(k); if (A[k]) mountEditor(k); });
-  $('#pBack').onclick = () => go(post ? 'result' : (activeSurveys().length ? 'survey' : 'welcome'));
+  $('#pBack').onclick = () => go(post ? 'result' : (R.rec && R.rec.resume) || !activeSurveys().length ? 'welcome' : 'survey');
   $('#toResult').onclick = finishMeasure;
-  $('#pSkip').onclick = async () => { if (await askConfirm('자세 측정 없이 참여를 마칠까요? 설문 응답은 저장돼요.', '건너뛰기', false)) go('done'); };
   updateResult();
 }
 function slotHtml(k, title, desc){
@@ -1078,7 +1128,12 @@ async function finishMeasure(){
     front: ptsOf('front'), side: ptsOf('side') };
   R.rec.measures = [...(R.rec.measures||[]), meas];
   const btn = $('#toResult'); btn.disabled = true;
-  if (await saveRec()){ R.lastMeasure = meas; go('result'); }
+  let ok;
+  if (R.rec.partial && Store.mode === 'firebase'){
+    try { await appendMeasureFb(R.rec, meas); ok = true; }
+    catch(e){ ok = false; handleWriteErrorSafe(e); }
+  } else ok = await saveRec();
+  if (ok){ R.lastMeasure = meas; go('result'); }
   else { R.rec.measures = R.rec.measures.filter(x => x.id !== meas.id); btn.disabled = false; }
 }
 function resetShots(){ A.front = null; A.side = null; A.hist = { front:[], side:[] }; }
